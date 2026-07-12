@@ -1,4 +1,4 @@
-Objective 1: Temporal comparison of LEPC in New Mexico.
+**Objective 1: Temporal comparison of LEPC in New Mexico.**
 
 •	Overview: 
 
