@@ -32,7 +32,8 @@ o	Which programs (and reference) to use:
 
 •	Genetic Load / Rxy - VEP and/or GERPP
 
-Objective 2: Assemble tri-species pangenome, compare between species.
+
+**Objective 2: Assemble tri-species pangenome, compare between species.**
 
 •	Overview:
 
@@ -70,7 +71,7 @@ o	Minmap cactus or PGGB for comparative analyses
 
 •	Pangenomic approach?
 
-Objective 3: GRPC vs STGR hybridization
+**Objective 3: GRPC vs STGR hybridization**
 
 •	Map of Targeted Samples
 
