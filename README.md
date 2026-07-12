@@ -33,15 +33,25 @@ o	Liftover of chicken annotation to all or just three nanopore assemblies
 o	Repeat Masker / EDTA for TE profiling
 o	Quast for assembly statistics
 o	Minmap cactus or PGGB for comparative analyses
+
 •	Questions:
+
 •	Pangenomic approach?
+
 Objective 3: GRPC vs STGR hybridization
+
 •	Map of Targeted Samples
+
 o	N=29 Sympatric GRPC
+
 o	N=6 Allopatric GRPC (same samples used for long read sequencing)
+
 o	N=20 Sympatric STGR 
+
 o	N=12 Allopatric STGR
+
 o	Additional Samples
+
 	N=2 putative STGR/GRPC hybrids
+
 	N=6 GRPC (from Northern DPS)
-<img width="468" height="624" alt="image" src="https://github.com/user-attachments/assets/1a8b6a5e-72e7-40e3-913d-7153fb922e26" />
