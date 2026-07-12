@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: DOWNLOAD CHICKEN REFERENCE (Gallus gallus, GRCg7b)
-# Step 02 — run once, before submitting 03_genome_assembly_array.sh.
+# Step 01 — run once, before submitting 02_genome_assembly_array.sh.
 # Downloads the reference FASTA + GFF3 annotation used by that array job's
 # RagTag pseudo-chromosome scaffolding and Liftoff annotation steps.
 # =============================================================================
