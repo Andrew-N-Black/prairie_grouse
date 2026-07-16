@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: 3-SPECIES PANGENOME + COMPARATIVE ANALYSIS
-# Step 04 — requires 03_genome_assembly_array.sh to have completed for the
+# Step 03 — requires 02_genome_assembly_array.sh to have completed for the
 # samples you want included (reads its final/ dir: hifiasm+yahs+RagTag
 # pseudo-chromosome assemblies + Liftoff chicken gene annotations).
 #
@@ -28,7 +28,7 @@
 # reference, chromosome-level partitioning should work cleanly if needed.
 #
 # USAGE:
-#   sbatch 04_pangenome_analysis.sh
+#   sbatch 03_pangenome_analysis.sh
 # =============================================================================
 #SBATCH --job-name=grouse_pangenome
 #SBATCH --output=logs/%x_%j.out
