@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: 3-SPECIES PANGENOME + COMPARATIVE ANALYSIS
-# Step 03 — requires 02_genome_assembly_array.sh to have completed for the
+# Step 04 — requires 03_genome_assembly_array.sh to have completed for the
 # samples you want included (reads its final/ dir: hifiasm+yahs+RagTag
 # pseudo-chromosome assemblies + Liftoff chicken gene annotations).
 #
@@ -28,7 +28,7 @@
 # reference, chromosome-level partitioning should work cleanly if needed.
 #
 # USAGE:
-#   sbatch 03_pangenome_analysis.sh
+#   sbatch 04_pangenome_analysis.sh
 # =============================================================================
 #SBATCH --job-name=grouse_pangenome
 #SBATCH --output=logs/%x_%j.out
@@ -54,7 +54,9 @@ ml pggb        # bundles wfmash/seqwish/smoothxg/odgi — module availability
                 # varies by cluster; pggb is also distributed as a Singularity
                 # container (https://github.com/pangenome/pggb#singularity)
 ml odgi
-ml panacus      # or `cargo install panacus` if no module exists
+# No panacus module and no cargo/Rust toolchain on this cluster, so it's
+# fetched below as a precompiled static (musl) binary — no compilation
+# needed. See PANACUS_BIN setup further down.
 ml repeatmodeler
 ml repeatmasker
 ml python
@@ -62,19 +64,21 @@ ml python
 # =============================================================================
 # USER-DEFINED VARIABLES
 # =============================================================================
-PROJECT="GROUSE_ASM"
-PROJECT_DIR="${CLUSTER_SCRATCH}/${PROJECT}"
-
 MANIFEST="${SLURM_SUBMIT_DIR}/assembly_manifest.tsv"
 
+PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE_ASM"
 FINAL_DIR="${PROJECT_DIR}/final"          # input: from 03_genome_assembly_array.sh
 LIFTOFF_DIR="${PROJECT_DIR}/liftoff"      # input: unmapped-feature lists from step 03
-
 PANGENOME_DIR="${PROJECT_DIR}/pangenome"
 TE_DIR="${PROJECT_DIR}/te_annotation"
 COMPARE_DIR="${PROJECT_DIR}/comparison"
 
 COMBINED_FASTA="${PANGENOME_DIR}/combined_haplotypes.fa"
+
+# panacus — precompiled static (musl) binary, cached under PROJECT_DIR so
+# this only downloads once across reruns. No cargo/Rust toolchain required.
+PANACUS_VERSION="0.5.1"
+PANACUS_BIN="${PROJECT_DIR}/panacus-${PANACUS_VERSION}/bin/panacus"
 
 # PGGB alignment parameters — moderate cross-species divergence within the
 # genus Tympanuchus. See https://pggb.readthedocs.io/en/latest/rst/essential_parameters.html
@@ -88,6 +92,29 @@ TE_PARALLEL_JOBS=4
 TE_THREADS_PER_JOB=$(( THREADS / TE_PARALLEL_JOBS > 0 ? THREADS / TE_PARALLEL_JOBS : 1 ))
 
 mkdir -p logs "$PANGENOME_DIR" "$TE_DIR" "$COMPARE_DIR"
+
+# =============================================================================
+# INSTALL panacus (once — skipped on reruns if already present)
+# No module and no cargo/Rust toolchain on this cluster, so we pull the
+# precompiled musl-linked binary from GitHub releases instead of building
+# from source. musl = statically linked, so it runs on any x86_64 Linux
+# node regardless of glibc version — no runtime dependencies to manage.
+# =============================================================================
+if [[ ! -x "$PANACUS_BIN" ]]; then
+    echo ">>> Installing panacus v${PANACUS_VERSION} (precompiled binary)"
+    PANACUS_TARBALL="panacus-${PANACUS_VERSION}_x86_64-unknown-linux-musl.tar.gz"
+    PANACUS_INSTALL_DIR="${PROJECT_DIR}/panacus-${PANACUS_VERSION}"
+    mkdir -p "$PANACUS_INSTALL_DIR"
+    wget -q -O "${PANACUS_INSTALL_DIR}/${PANACUS_TARBALL}" \
+        "https://github.com/marschall-lab/panacus/releases/download/v${PANACUS_VERSION}/${PANACUS_TARBALL}"
+    tar -xzf "${PANACUS_INSTALL_DIR}/${PANACUS_TARBALL}" -C "$PANACUS_INSTALL_DIR" --strip-components=1
+    rm -f "${PANACUS_INSTALL_DIR}/${PANACUS_TARBALL}"
+fi
+
+if [[ ! -x "$PANACUS_BIN" ]]; then
+    echo "ERROR: panacus install failed — expected binary not found at ${PANACUS_BIN}"
+    exit 1
+fi
 
 echo ">>> 04_pangenome_analysis.sh"
 echo ">>> Node      : $(hostname)"
@@ -223,14 +250,14 @@ awk -F'#' '{ split($1, g, "."); print $0"\t"g[1] }' "${COMPARE_DIR}/path_names.t
     > "${COMPARE_DIR}/panacus_groups.tsv"
 
 set +e
-panacus histgrowth -t "$THREADS" -s "${COMPARE_DIR}/panacus_groups.tsv" "$GFA" \
+"$PANACUS_BIN" histgrowth -t "$THREADS" -s "${COMPARE_DIR}/panacus_groups.tsv" "$GFA" \
     > "${COMPARE_DIR}/pangenome_histgrowth_by_species.tsv"
 PANACUS_STATUS=$?
 set -e
 
 if [[ "$PANACUS_STATUS" -ne 0 ]]; then
     echo "  WARNING: panacus histgrowth failed (exit ${PANACUS_STATUS})."
-    echo "  Check the -s grouping file format against 'panacus histgrowth --help'"
+    echo "  Check the -s grouping file format against '${PANACUS_BIN} histgrowth --help'"
     echo "  and rerun manually — this does not block the TE/gene comparisons below."
 fi
 
