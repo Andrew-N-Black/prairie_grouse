@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SLURM ARRAY JOB: DE NOVO GENOME ASSEMBLY — hifiasm + yahs
-#  Requires 01_download_chicken_ref.sh to have completed first.
+# Step 03 — requires 02_download_chicken_ref.sh to have completed first.
 # n=23 samples across 3 species (Sharp-tailed Grouse, Lesser Prairie-Chicken,
 # Greater Prairie-Chicken). One array task per sample.
 #
@@ -28,7 +28,7 @@
 #                     that don't have it
 #
 # USAGE:
-#   Run 01_download_chicken_ref.sh first — it fetches the reference this
+#   Run 02_download_chicken_ref.sh first — it fetches the reference this
 #   script needs and prints the exact sbatch command to submit this array.
 #   Or submit manually:
 #
@@ -68,30 +68,27 @@ ml liftoff  # or `pip install liftoff` / conda if no module exists
 # =============================================================================
 # USER-DEFINED VARIABLES
 # =============================================================================
-PROJECT="GROUSE_ASM"
-PROJECT_DIR="${CLUSTER_SCRATCH}/${PROJECT}"
-
 MANIFEST="${SLURM_SUBMIT_DIR}/assembly_manifest.tsv"
 
+PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE_ASM"
+REF_DIR="${PROJECT_DIR}/ref"
 ASM_DIR="${PROJECT_DIR}/hifiasm"
 SCAFFOLD_DIR="${PROJECT_DIR}/yahs"
 RAGTAG_DIR="${PROJECT_DIR}/ragtag"
 LIFTOFF_DIR="${PROJECT_DIR}/liftoff"
 FINAL_DIR="${PROJECT_DIR}/final"
-REF_DIR="${PROJECT_DIR}/ref"
+
+# Chicken (Gallus gallus) RefSeq reference — downloaded by
+# 02_download_chicken_ref.sh (GCF_016699485.2 / GRCg7b); used here by RagTag
+# to orient/order scaffolds into pseudo-chromosomes and by Liftoff as the
+# annotation source.
+CHICKEN_ASM_DIR="GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b"
+CHICKEN_FASTA="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.fna"
+CHICKEN_GFF="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.gff"
 
 # Minimum mapping quality for Hi-C alignments passed to yahs — reads below
 # this are dropped so scaffolding only relies on confidently-placed pairs.
 HIC_MIN_MAPQ=20
-
-# Chicken (Gallus gallus) RefSeq reference — used by RagTag to orient/order
-# scaffolds into pseudo-chromosomes, and by Liftoff as the annotation source.
-CHICKEN_ACC="GCF_016699485.2"
-CHICKEN_ASM_NAME="bGalGal1.mat.broiler.GRCg7b"
-CHICKEN_ASM_DIR="${CHICKEN_ACC}_${CHICKEN_ASM_NAME}"
-CHICKEN_FTP_BASE="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/${CHICKEN_ASM_DIR}"
-CHICKEN_FASTA="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.fna"
-CHICKEN_GFF="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.gff"
 
 THREADS=$SLURM_CPUS_PER_TASK
 
