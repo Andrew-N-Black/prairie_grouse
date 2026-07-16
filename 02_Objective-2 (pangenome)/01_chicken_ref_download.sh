@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: DOWNLOAD CHICKEN REFERENCE (Gallus gallus, GRCg7b)
-# Step 01 — run once, before submitting 02_genome_assembly_array.sh.
+# Step 01 — run once, before submitting Step 02 script.
 # Downloads the reference FASTA + GFF3 annotation used by that array job's
 # RagTag pseudo-chromosome scaffolding and Liftoff annotation steps.
 # =============================================================================
@@ -16,7 +16,7 @@
 #SBATCH --mem=8G
 #SBATCH -p cpu
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=${USER}@purdue.edu
+#SBATCH --mail-user=blackan@purdue.edu
 
 # =============================================================================
 # ENVIRONMENT SETUP
@@ -26,22 +26,18 @@ set -euo pipefail
 # =============================================================================
 # USER-DEFINED VARIABLES
 # =============================================================================
-PROJECT="GROUSE_ASM"
-PROJECT_DIR="${CLUSTER_SCRATCH}/${PROJECT}"
-REF_DIR="${PROJECT_DIR}/ref"
-
 # Chicken (Gallus gallus) RefSeq reference — GCF_016699485.2 / GRCg7b
-CHICKEN_ACC="GCF_016699485.2"
-CHICKEN_ASM_NAME="bGalGal1.mat.broiler.GRCg7b"
-CHICKEN_ASM_DIR="${CHICKEN_ACC}_${CHICKEN_ASM_NAME}"
+CHICKEN_ASM_DIR="GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b"
 CHICKEN_FTP_BASE="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/${CHICKEN_ASM_DIR}"
+
+REF_DIR="${CLUSTER_SCRATCH}/GROUSE_ASM/ref"
 CHICKEN_FASTA="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.fna"
 CHICKEN_GFF="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.gff"
 
 mkdir -p logs "$REF_DIR"
 
 echo ">>> 02_download_chicken_ref.sh"
-echo ">>> Reference : ${CHICKEN_ACC} (${CHICKEN_ASM_NAME})"
+echo ">>> Reference : ${CHICKEN_ASM_DIR}"
 echo ">>> Start time: $(date)"
 
 # =============================================================================
