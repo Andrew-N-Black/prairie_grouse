@@ -41,7 +41,7 @@
 #SBATCH --mem=500G
 #SBATCH -p cpu
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=${USER}@purdue.edu
+#SBATCH --mail-user=blackan@purdue.edu
 
 # =============================================================================
 # ENVIRONMENT SETUP
@@ -59,7 +59,6 @@ ml odgi
 # needed. See PANACUS_BIN setup further down.
 ml repeatmodeler
 ml repeatmasker
-ml python
 
 # =============================================================================
 # USER-DEFINED VARIABLES
@@ -104,11 +103,25 @@ if [[ ! -x "$PANACUS_BIN" ]]; then
     echo ">>> Installing panacus v${PANACUS_VERSION} (precompiled binary)"
     PANACUS_TARBALL="panacus-${PANACUS_VERSION}_x86_64-unknown-linux-musl.tar.gz"
     PANACUS_INSTALL_DIR="${PROJECT_DIR}/panacus-${PANACUS_VERSION}"
-    mkdir -p "$PANACUS_INSTALL_DIR"
-    wget -q -O "${PANACUS_INSTALL_DIR}/${PANACUS_TARBALL}" \
+    PANACUS_TMP="${PROJECT_DIR}/.panacus_extract_tmp"
+
+    rm -rf "$PANACUS_TMP"
+    mkdir -p "$PANACUS_TMP" "$PANACUS_INSTALL_DIR"
+    wget -q -O "${PANACUS_TMP}/${PANACUS_TARBALL}" \
         "https://github.com/marschall-lab/panacus/releases/download/v${PANACUS_VERSION}/${PANACUS_TARBALL}"
-    tar -xzf "${PANACUS_INSTALL_DIR}/${PANACUS_TARBALL}" -C "$PANACUS_INSTALL_DIR" --strip-components=1
-    rm -f "${PANACUS_INSTALL_DIR}/${PANACUS_TARBALL}"
+    tar -xzf "${PANACUS_TMP}/${PANACUS_TARBALL}" -C "$PANACUS_TMP"
+
+    # Move the archive's inner contents up into PANACUS_INSTALL_DIR rather
+    # than relying on `tar --strip-components` — tested interactively and it
+    # did not flatten the release's top-level directory as expected, so this
+    # is deliberately independent of that archive's exact internal layout.
+    PANACUS_INNER_DIR=$(find "$PANACUS_TMP" -mindepth 1 -maxdepth 1 -type d | head -n1)
+    if [[ -z "$PANACUS_INNER_DIR" ]]; then
+        echo "ERROR: panacus archive did not extract as expected — check ${PANACUS_TMP}"
+        exit 1
+    fi
+    mv "$PANACUS_INNER_DIR"/* "$PANACUS_INSTALL_DIR"/
+    rm -rf "$PANACUS_TMP"
 fi
 
 if [[ ! -x "$PANACUS_BIN" ]]; then
