@@ -88,3 +88,10 @@ o	Additional Samples
 •	N=2 putative STGR/GRPC hybrids
 
 •	N=6 GRPC (from Northern DPS)
+
+**Objective 4: Extension of PNAS Nexus dataset**
+
+•	Overview: 
+o Add downsampled 2026 short read samples to n=433 pnas nexus samples and extend results for 1) PCA, 2) individual heterozygosity, and 3)fROH.
+
+
