@@ -56,14 +56,27 @@ ml samtools/1.22.1
 # package also provides the `juicer` binary used in Step 5 (yahs's own JBAT
 # pre-processor, bundled in the same repo — NOT Aidenlab's official juicer
 # pipeline of the same name).
-ml anaconda/2025.12-py313
-ml java # for juicer_tools.jar (Step 5)
+#
+# NOTE: `anaconda` is deliberately NOT loaded here — Lmod on this cluster
+# conflicts several bioinformatics tool modules (confirmed for liftoff;
+# possibly others below) against `anaconda` being loaded at all. It's only
+# needed for the one-time `conda create` that installs yahs, so it's loaded
+# and unloaded right around that call instead of held for the whole script.
 ml ragtag   # or `pip install ragtag` / conda if no module exists
 ml liftoff  # or `pip install liftoff` / conda if no module exists
 ml minimap2
-ml pretextmap       # or build from https://github.com/sanger-tol/PretextMap
-ml pretextsnapshot   # or build from https://github.com/sanger-tol/PretextSnapshot
-ml python            # needs matplotlib for the orientation dotplot
+# No pretextmap/pretextsnapshot modules on this cluster either — installed
+# below via conda/bioconda alongside yahs (see PRETEXT_ENV_DIR further down).
+#
+# NOT loading a "python" module for the orientation dotplot (Step 8) either:
+# there is no "python" module on this cluster at all ("ml python" errors
+# outright), and bare `python3` on PATH here is actually a shell FUNCTION
+# defined by the liftoff module that execs into liftoff's own Singularity
+# container — which doesn't have matplotlib, and would silently keep
+# shadowing any later `python3` call anyway, since functions win over PATH
+# lookups in bash regardless of module load order. Python+matplotlib are
+# installed below into their own conda env instead and invoked by absolute
+# path, which sidesteps function/alias shadowing entirely.
 
 # =============================================================================
 # SAMPLE VARIABLES — set these via `export` before calling sbatch (see
@@ -107,21 +120,71 @@ YAHS_ENV_DIR="${PROJECT_DIR}/conda_envs/yahs-${YAHS_VERSION}"
 YAHS_BIN="${YAHS_ENV_DIR}/bin/yahs"
 JUICER_BIN="${YAHS_ENV_DIR}/bin/juicer"
 
+# PretextMap/PretextSnapshot — also no module; also installed via conda/
+# bioconda, same pattern and same reasoning as yahs above. Confirmed on
+# bioconda (linux-64) at pretextmap=0.2.4, pretextsnapshot=0.0.7. Points at
+# the SAME shared env location as the real 03 script, so if that's already
+# built this test run reuses it rather than reinstalling.
+PRETEXT_ENV_DIR="${PROJECT_DIR}/conda_envs/pretext"
+PRETEXTMAP_BIN="${PRETEXT_ENV_DIR}/bin/PretextMap"
+PRETEXTSNAPSHOT_BIN="${PRETEXT_ENV_DIR}/bin/PretextSnapshot"
+
+# Python 3 + matplotlib for the orientation dotplot (Step 8) — see the NOTE
+# in ENVIRONMENT SETUP above for why this can't just be an HPC module or
+# bare `python3`. Same conda pattern as yahs/Pretext, invoked by absolute
+# path. Points at the same shared env location as the real 03 script.
+DOTPLOT_ENV_DIR="${PROJECT_DIR}/conda_envs/dotplot-python"
+DOTPLOT_PYTHON_BIN="${DOTPLOT_ENV_DIR}/bin/python3"
+
 THREADS=$SLURM_CPUS_PER_TASK
 
 mkdir -p logs "$ASM_DIR" "$SCAFFOLD_DIR" "$RAGTAG_DIR" "$LIFTOFF_DIR" "$FINAL_DIR" "$QC_DIR"
 
 # =============================================================================
-# INSTALL yahs (once — skipped if the real 03/02 setup already built it,
-# since YAHS_ENV_DIR points at the same shared conda env)
+# INSTALL yahs + Pretext + dotplot Python env (once — skipped if the real
+# 03/02 setup already built them, since these point at the same shared
+# conda env locations). `anaconda` is loaded only for these calls and
+# unloaded immediately after — see the NOTE in ENVIRONMENT SETUP above for
+# why it can't stay loaded alongside liftoff (and possibly other) modules
+# used later in this script.
 # =============================================================================
-if [[ ! -x "$YAHS_BIN" || ! -x "$JUICER_BIN" ]]; then
-    echo ">>> Installing yahs v${YAHS_VERSION} via conda (bioconda)"
-    conda create --yes --prefix "$YAHS_ENV_DIR" -c bioconda -c conda-forge "yahs=${YAHS_VERSION}"
+NEED_ANACONDA=false
+[[ ! -x "$YAHS_BIN" || ! -x "$JUICER_BIN" ]] && NEED_ANACONDA=true
+[[ ! -x "$PRETEXTMAP_BIN" || ! -x "$PRETEXTSNAPSHOT_BIN" ]] && NEED_ANACONDA=true
+[[ ! -x "$DOTPLOT_PYTHON_BIN" ]] && NEED_ANACONDA=true
+
+if [[ "$NEED_ANACONDA" == true ]]; then
+    ml anaconda/2025.12-py313
+
+    if [[ ! -x "$YAHS_BIN" || ! -x "$JUICER_BIN" ]]; then
+        echo ">>> Installing yahs v${YAHS_VERSION} via conda (bioconda)"
+        conda create --yes --override-channels --prefix "$YAHS_ENV_DIR" -c bioconda -c conda-forge "yahs=${YAHS_VERSION}"
+    fi
+
+    if [[ ! -x "$PRETEXTMAP_BIN" || ! -x "$PRETEXTSNAPSHOT_BIN" ]]; then
+        echo ">>> Installing PretextMap/PretextSnapshot via conda (bioconda)"
+        conda create --yes --override-channels --prefix "$PRETEXT_ENV_DIR" -c bioconda -c conda-forge \
+            pretextmap=0.2.4 pretextsnapshot=0.0.7
+    fi
+
+    if [[ ! -x "$DOTPLOT_PYTHON_BIN" ]]; then
+        echo ">>> Installing Python 3 + matplotlib via conda (conda-forge)"
+        conda create --yes --override-channels --prefix "$DOTPLOT_ENV_DIR" -c conda-forge python=3.11 matplotlib
+    fi
+
+    module unload anaconda/2025.12-py313
 fi
 
 if [[ ! -x "$YAHS_BIN" || ! -x "$JUICER_BIN" ]]; then
     echo "ERROR: yahs install failed — expected binaries not found in ${YAHS_ENV_DIR}/bin"
+    exit 1
+fi
+if [[ ! -x "$PRETEXTMAP_BIN" || ! -x "$PRETEXTSNAPSHOT_BIN" ]]; then
+    echo "ERROR: Pretext install failed — expected binaries not found in ${PRETEXT_ENV_DIR}/bin"
+    exit 1
+fi
+if [[ ! -x "$DOTPLOT_PYTHON_BIN" ]]; then
+    echo "ERROR: dotplot Python env install failed — expected binary not found: ${DOTPLOT_PYTHON_BIN}"
     exit 1
 fi
 
@@ -300,7 +363,7 @@ for HAP in hap1 hap2; do
     minimap2 -x asm20 -t "$THREADS" "$CHICKEN_FASTA" "$FINAL_FASTA" > "$PAF"
 
     DOTPLOT="${QC_DIR}/${SAMPLE}.${HAP}.orientation_dotplot.png"
-    python3 - "$PAF" "$DOTPLOT" "${SPECIES} ${SAMPLE} ${HAP} vs chicken (GRCg7b)" << 'PYEOF'
+    "$DOTPLOT_PYTHON_BIN" - "$PAF" "$DOTPLOT" "${SPECIES} ${SAMPLE} ${HAP} vs chicken (GRCg7b)" << 'PYEOF'
 import math, sys
 from collections import defaultdict
 import matplotlib
@@ -377,9 +440,9 @@ PYEOF
 
     PRETEXT_MAP="${QC_DIR}/${SAMPLE}.${HAP}.pretext"
     samtools view -h "$FINAL_HIC_BAM" \
-        | PretextMap -o "$PRETEXT_MAP" --sortby length --sortorder descend --mapq "$HIC_MIN_MAPQ"
+        | "$PRETEXTMAP_BIN" -o "$PRETEXT_MAP" --sortby length --sortorder descend --mapq "$HIC_MIN_MAPQ"
 
-    PretextSnapshot --map "$PRETEXT_MAP" --sequences "=full" \
+    "$PRETEXTSNAPSHOT_BIN" --map "$PRETEXT_MAP" --sequences "=full" \
         --prefix "${SAMPLE}.${HAP}." --folder "$QC_DIR"
 
     echo "  Hi-C contact map    : ${QC_DIR}/${SAMPLE}.${HAP}.*.png"
