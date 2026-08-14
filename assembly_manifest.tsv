@@ -1,0 +1,16 @@
+# Manifest for 02_genome_assembly_array.sh
+# Tab-separated. One row per sample (23 total: sharp-tailed grouse, lesser
+# prairie-chicken, greater prairie-chicken). Lines starting with '#' are
+# ignored. Replace the EXAMPLE row below with your real 23 rows, in the
+# same order you want them addressed by SLURM array index (row 1 -> task 0).
+#
+# hifi_bams: raw, UNALIGNED PacBio HiFi BAM(s) straight off the instrument
+# (*.hifi_reads.bc####.bam — bc#### is a demultiplexing barcode, not an
+# alignment target). May list multiple files comma-separated (no spaces)
+# if a sample was split across multiple SMRT cells. HiFiAdapterFilt (Step 1
+# of 02_genome_assembly_array.sh) converts these to filtered FASTQ itself —
+# do not pre-convert to FASTQ yourself.
+# ont_ul must be "NA" for the 20 samples without ultra-long ONT reads, and
+# the real file path for the 3 samples (one per species) that have them.
+sample_id	species	hifi_bams	hic_r1	hic_r2	ont_ul
+# EXAMPLE_sample	sharp-tailed_grouse	/path/to/EXAMPLE.hifi_reads.bc0001.bam,/path/to/EXAMPLE_s2.hifi_reads.bc0002.bam	/path/to/EXAMPLE_hic_R1.fastq.gz	/path/to/EXAMPLE_hic_R2.fastq.gz	NA
