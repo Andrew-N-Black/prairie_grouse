@@ -16,7 +16,7 @@
 #   3. Leaves OLD-cohort BAMs and any NEW sample already at/below
 #      TARGET_DEPTH untouched.
 #   4. Writes final_bamlist.txt — the single input every downstream script
-#      (08, 09) consumes.
+#      (07, 08) consumes.
 #
 # USAGE:
 #   sbatch 06_downsample_and_finalize.sh

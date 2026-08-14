@@ -19,7 +19,7 @@
 #   - No mappability-mask / RepeatMasker BED restriction — filtering is
 #     quality-based only (matches the original's samtools view flags).
 #
-# Depth here is NOT yet the final analysis depth — 07_downsample_and_
+# Depth here is NOT yet the final analysis depth — 06_downsample_and_
 # finalize.sh compares depths across both cohorts and downsamples any NEW
 # sample that exceeds the OLD cohort's empirical mean before anything
 # downstream (heterozygosity/PCA/ROH) runs, so both cohorts are analyzed
@@ -62,9 +62,10 @@ ml gatk4
 PROJECT_DIR="${CLUSTER_SCRATCH}/LEPC"
 REF_DIR="${PROJECT_DIR}/ref"
 
-# Same reference already downloaded by 01_obj.sh — reused here, not
-# re-fetched.
-REF_GZ="${REF_DIR}/GCF_026119805.1_pur_lepc_1.0_genomic.fa.gz"
+# LEPC (Tympanuchus pallidicinctus) RefSeq reference — GCF_026119805.1 /
+# pur_lepc_1.0. Downloaded by 01_download_reference_genomes.sh; this script
+# only builds the tool-specific indices it needs (bwa/gatk), not the raw
+# download itself.
 REF_FASTA="${REF_DIR}/GCF_026119805.1_pur_lepc_1.0_genomic.fa"
 
 PRJNA986511_RAW_DIR="${CLUSTER_SCRATCH}/PRJNA986511/raw"
@@ -86,13 +87,9 @@ mkdir -p logs "$REF_DIR" "$ALIGN_DIR" "$DEPTH_DIR"
 # =============================================================================
 prep_reference() {
     if [[ ! -f "$REF_FASTA" ]]; then
-        echo ">>> Decompressing reference"
-        if [[ ! -f "$REF_GZ" ]]; then
-            echo "ERROR: Reference not found: ${REF_GZ}"
-            echo "Run 01_obj.sh first (it downloads this file)."
-            exit 1
-        fi
-        gunzip -k -c "$REF_GZ" > "$REF_FASTA"
+        echo "ERROR: LEPC reference not found: ${REF_FASTA}"
+        echo "Run 01_download_reference_genomes.sh first."
+        exit 1
     fi
     if [[ ! -f "${REF_FASTA}.fai" ]]; then
         echo ">>> Indexing reference (samtools faidx)"
