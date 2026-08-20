@@ -33,15 +33,3 @@ population-genomics track.
 - [`assembly_manifest.tsv`](assembly_manifest.tsv) — one row per assembly sample: sample ID, species, raw PacBio HiFi BAM path(s), Hi-C R1/R2, optional ONT ultra-long path.
 - [`shortread_manifest.tsv`](shortread_manifest.tsv) — one row per population-resequencing sample: sample ID, species (or `Outgroup`), short-read FASTQ R1/R2.
 
-## Notes
-
-- **Conda envs are self-installing.** `yahs`, `PretextMap`/`PretextSnapshot`, a dedicated
-  Python+matplotlib env, `HiFiAdapterFilt`, and `panacus` all have no module on this cluster —
-  each script installs them into `conda_envs/` under its project directory on first run and
-  invokes them by absolute path (not `conda activate`) to avoid a confirmed Lmod conflict
-  between `anaconda` and several bioinformatics modules (`liftoff`, at minimum).
-- **`nextflow.config`** in this directory was written for an earlier nf-core/sarek
-  variant-calling script that has since been removed. Nothing in the current pipeline uses
-  Nextflow — safe to delete unless you're keeping it for reference.
-- Cluster-specific assumptions throughout: SLURM account `fnrdewoody`, `cpu` partition,
-  `$CLUSTER_SCRATCH` as the scratch root. Adjust if reusing this elsewhere.
