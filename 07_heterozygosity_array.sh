@@ -2,20 +2,22 @@
 # =============================================================================
 # SLURM ARRAY JOB: PER-SAMPLE HETEROZYGOSITY (ANGSD + realSFS)
 # Step 07 — requires 06_downsample_and_finalize.sh to have completed
-# (reads final_bamlist.txt: OLD-cohort BAMs as-is + depth-matched NEW-cohort
-# BAMs). One array task per sample.
+# (reads final_cramlist.txt: OLD-cohort CRAMs as-is + depth-matched
+# NEW-cohort CRAMs). One array task per sample.
 #
 # Replicates the original heterozygosity.sh exactly (same ANGSD/realSFS
 # flags), run genome-wide against the full LEPC reference rather than the
 # original's 100kb-window subset (per explicit instruction — no windowing
-# scheme to replicate/fabricate).
+# scheme to replicate/fabricate). Input is CRAM, not BAM — ANGSD reads
+# CRAM natively via its htslib backend as long as -ref is provided (already
+# required here for the SAF/ancestral-state calculation anyway).
 #
 # Individual heterozygosity = SFS[1] / (SFS[0] + SFS[1]) from the folded,
 # 2-category single-sample SFS — the standard ANGSD single-sample
 # heterozygosity estimate.
 #
 # USAGE:
-#   N=$(wc -l < <PROJECT_DIR>/final_bamlist.txt)
+#   N=$(wc -l < <PROJECT_DIR>/final_cramlist.txt)
 #   sbatch --array=0-$((N-1))%20 07_heterozygosity_array.sh
 # =============================================================================
 #SBATCH --job-name=lepc_het
@@ -44,7 +46,7 @@ ml angsd
 # =============================================================================
 PROJECT_DIR="${CLUSTER_SCRATCH}/LEPC"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fa"
-FINAL_BAMLIST="${PROJECT_DIR}/final_bamlist.txt"
+FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
 HET_DIR="${PROJECT_DIR}/heterozygosity"
 
 THREADS=$SLURM_CPUS_PER_TASK
@@ -60,26 +62,26 @@ if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$FINAL_BAMLIST" ]]; then
-    echo "ERROR: ${FINAL_BAMLIST} not found."
+if [[ ! -f "$FINAL_CRAMLIST" ]]; then
+    echo "ERROR: ${FINAL_CRAMLIST} not found."
     echo "Run 06_downsample_and_finalize.sh first."
     exit 1
 fi
 
-mapfile -t BAMS < "$FINAL_BAMLIST"
-BAM="${BAMS[$SLURM_ARRAY_TASK_ID]:-}"
+mapfile -t CRAMS < "$FINAL_CRAMLIST"
+CRAM="${CRAMS[$SLURM_ARRAY_TASK_ID]:-}"
 
-if [[ -z "$BAM" ]]; then
-    echo "ERROR: No BAM at index ${SLURM_ARRAY_TASK_ID} in ${FINAL_BAMLIST}"
+if [[ -z "$CRAM" ]]; then
+    echo "ERROR: No CRAM at index ${SLURM_ARRAY_TASK_ID} in ${FINAL_CRAMLIST}"
     exit 1
 fi
 
-SAMPLE=$(basename "$BAM")
-SAMPLE="${SAMPLE%_filt.bam}"
-SAMPLE="${SAMPLE%_ds.bam}"
+SAMPLE=$(basename "$CRAM")
+SAMPLE="${SAMPLE%_filt.cram}"
+SAMPLE="${SAMPLE%_ds.cram}"
 
 echo ">>> Array task ${SLURM_ARRAY_TASK_ID} -> sample: ${SAMPLE}"
-echo ">>> BAM  : ${BAM}"
+echo ">>> CRAM : ${CRAM}"
 echo ">>> CPUs : ${THREADS}"
 echo ">>> Start: $(date)"
 
@@ -88,7 +90,7 @@ echo ">>> Start: $(date)"
 # =============================================================================
 echo ">>> Step 1: ANGSD -doSaf"
 
-angsd -i "$BAM" -ref "$REF_FASTA" -anc "$REF_FASTA" \
+angsd -i "$CRAM" -ref "$REF_FASTA" -anc "$REF_FASTA" \
     -dosaf 1 -minMapQ 30 -GL 1 -P "$THREADS" \
     -out "${HET_DIR}/${SAMPLE}" \
     -doCounts 1 -setMinDepth 3
