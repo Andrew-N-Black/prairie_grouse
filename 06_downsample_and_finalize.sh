@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# SLURM JOB SUBMISSION: DEPTH-MATCH DOWNSAMPLING + FINAL BAM LIST
+# SLURM JOB SUBMISSION: DEPTH-MATCH DOWNSAMPLING + FINAL CRAM LIST
 # Step 06 — requires 05_combined_alignment_array.sh to have completed for
-# every sample (reads its per-sample depth files).
+# every sample (reads its per-sample depth files and *_filt.cram files).
 #
 # The OLD cohort (n=468, PRJNA986511) is low coverage (originally reported
 # ~6x). The NEW cohort's actual depth is whatever it turns out to be once
@@ -11,11 +11,11 @@
 #   1. Computes the OLD cohort's TARGET_DEPTH empirically from its own
 #      measured depths (not a hardcoded "6" — more rigorous and
 #      self-consistent with whatever the actual data show).
-#   2. Downsamples only NEW-cohort BAMs that exceed TARGET_DEPTH, via
-#      `samtools view -s <seed>.<fraction>`.
-#   3. Leaves OLD-cohort BAMs and any NEW sample already at/below
+#   2. Downsamples only NEW-cohort CRAMs that exceed TARGET_DEPTH, via
+#      `samtools view -s <seed>.<fraction>`, output kept as CRAM.
+#   3. Leaves OLD-cohort CRAMs and any NEW sample already at/below
 #      TARGET_DEPTH untouched.
-#   4. Writes final_bamlist.txt — the single input every downstream script
+#   4. Writes final_cramlist.txt — the single input every downstream script
 #      (07, 08) consumes.
 #
 # USAGE:
@@ -46,11 +46,12 @@ ml samtools/1.22.1
 # USER-DEFINED VARIABLES
 # =============================================================================
 PROJECT_DIR="${CLUSTER_SCRATCH}/LEPC"
+REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fa"
 ALIGN_DIR="${PROJECT_DIR}/aligned"
 DEPTH_DIR="${PROJECT_DIR}/depth"
 DOWNSAMPLE_DIR="${PROJECT_DIR}/downsampled"
 
-FINAL_BAMLIST="${PROJECT_DIR}/final_bamlist.txt"
+FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
 DEPTH_SUMMARY="${PROJECT_DIR}/depth_summary.tsv"
 
 # Fixed seed for reproducible downsampling (samtools view -s SEED.FRACTION)
@@ -62,6 +63,12 @@ mkdir -p logs "$DOWNSAMPLE_DIR"
 
 echo ">>> 06_downsample_and_finalize.sh"
 echo ">>> Start time: $(date)"
+
+if [[ ! -f "$REF_FASTA" ]]; then
+    echo "ERROR: LEPC reference not found: ${REF_FASTA}"
+    echo "Run 01_download_reference_genomes.sh first (needed for CRAM -T)."
+    exit 1
+fi
 
 # =============================================================================
 # STEP 1: Aggregate per-sample depth files
@@ -110,20 +117,20 @@ echo ">>> Step 3: Downsampling NEW-cohort samples exceeding target depth"
 DOWNSAMPLE_LOG="${PROJECT_DIR}/downsample_log.tsv"
 echo -e "sample_id\tcohort\tmeasured_depth\ttarget_depth\tfraction_kept\taction" > "$DOWNSAMPLE_LOG"
 
-> "$FINAL_BAMLIST"
+> "$FINAL_CRAMLIST"
 
 while IFS=$'\t' read -r sample cohort depth breadth; do
     [[ "$sample" == "sample_id" ]] && continue
-    filt_bam="${ALIGN_DIR}/${sample}_filt.bam"
+    filt_cram="${ALIGN_DIR}/${sample}_filt.cram"
 
-    if [[ ! -f "$filt_bam" ]]; then
-        echo "  WARNING: expected BAM not found for ${sample} — skipping: ${filt_bam}" >&2
+    if [[ ! -f "$filt_cram" ]]; then
+        echo "  WARNING: expected CRAM not found for ${sample} — skipping: ${filt_cram}" >&2
         continue
     fi
 
     if [[ "$cohort" == "OLD" ]]; then
         echo -e "${sample}\tOLD\t${depth}\t${TARGET_DEPTH}\t1.0000\tunchanged" >> "$DOWNSAMPLE_LOG"
-        echo "$filt_bam" >> "$FINAL_BAMLIST"
+        echo "$filt_cram" >> "$FINAL_CRAMLIST"
         continue
     fi
 
@@ -137,27 +144,27 @@ while IFS=$'\t' read -r sample cohort depth breadth; do
         # fraction rounds up to 1.0000 (depth only marginally above target).
         seedfrac=$(awk -v d="$depth" -v t="$TARGET_DEPTH" -v seed="$DOWNSAMPLE_SEED" \
             'BEGIN { f = t/d; if (f >= 1) f = 0.9999; printf "%d.%04d", seed, int(f*10000) }')
-        ds_bam="${DOWNSAMPLE_DIR}/${sample}_ds.bam"
-        if [[ ! -f "$ds_bam" ]]; then
-            samtools view -@ "$THREADS" -s "$seedfrac" -b "$filt_bam" > "$ds_bam"
-            samtools index "$ds_bam"
+        ds_cram="${DOWNSAMPLE_DIR}/${sample}_ds.cram"
+        if [[ ! -f "$ds_cram" ]]; then
+            samtools view -@ "$THREADS" -s "$seedfrac" -C -T "$REF_FASTA" "$filt_cram" > "$ds_cram"
+            samtools index "$ds_cram"
         fi
         echo -e "${sample}\tNEW\t${depth}\t${TARGET_DEPTH}\t${fraction}\tdownsampled" >> "$DOWNSAMPLE_LOG"
-        echo "$ds_bam" >> "$FINAL_BAMLIST"
+        echo "$ds_cram" >> "$FINAL_CRAMLIST"
     else
         echo -e "${sample}\tNEW\t${depth}\t${TARGET_DEPTH}\t1.0000\tunchanged (already <= target)" >> "$DOWNSAMPLE_LOG"
-        echo "$filt_bam" >> "$FINAL_BAMLIST"
+        echo "$filt_cram" >> "$FINAL_CRAMLIST"
     fi
 done < "$DEPTH_SUMMARY"
 
-N_FINAL=$(wc -l < "$FINAL_BAMLIST")
+N_FINAL=$(wc -l < "$FINAL_CRAMLIST")
 
 echo ""
 echo ">>> Downsampling complete."
 echo "    Target depth       : ${TARGET_DEPTH}x"
 echo "    Samples in final list: ${N_FINAL}"
 echo "    Downsample log      : ${DOWNSAMPLE_LOG}"
-echo "    Final BAM list      : ${FINAL_BAMLIST}"
+echo "    Final CRAM list     : ${FINAL_CRAMLIST}"
 echo ""
 echo ">>> Next: submit 07_heterozygosity_array.sh with:"
 echo "    sbatch --array=0-$((N_FINAL - 1))%20 07_heterozygosity_array.sh"

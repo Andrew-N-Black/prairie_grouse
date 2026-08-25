@@ -1,9 +1,11 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: PCA + RUNS OF HOMOZYGOSITY (combined cohort)
-# Step 08 — requires 06_downsample_and_finalize.sh (final_bamlist.txt) and,
+# Step 08 — requires 06_downsample_and_finalize.sh (final_cramlist.txt) and,
 # for the heterozygosity aggregation step, 07_heterozygosity_array.sh to
-# have completed for all samples.
+# have completed for all samples. Input is CRAM (ANGSD's -bam flag accepts
+# a list of CRAM paths the same way it does BAM — it reads them through
+# the same htslib backend regardless of format).
 #
 # Replicates beagle.sh + pca.sh + ROH.sh + rohparser.py from
 # https://github.com/Andrew-N-Black/LEPC-popgen, with two deliberate,
@@ -54,7 +56,7 @@ ml python
 # =============================================================================
 PROJECT_DIR="${CLUSTER_SCRATCH}/LEPC"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fa"
-FINAL_BAMLIST="${PROJECT_DIR}/final_bamlist.txt"
+FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
 HET_DIR="${PROJECT_DIR}/heterozygosity"
 
 BEAGLE_DIR="${PROJECT_DIR}/beagle"
@@ -77,8 +79,8 @@ mkdir -p logs "$BEAGLE_DIR" "$PCA_DIR" "$ROH_DIR"
 echo ">>> 08_pca_roh.sh"
 echo ">>> Start time: $(date)"
 
-if [[ ! -f "$FINAL_BAMLIST" ]]; then
-    echo "ERROR: ${FINAL_BAMLIST} not found. Run 06_downsample_and_finalize.sh first."
+if [[ ! -f "$FINAL_CRAMLIST" ]]; then
+    echo "ERROR: ${FINAL_CRAMLIST} not found. Run 06_downsample_and_finalize.sh first."
     exit 1
 fi
 if [[ ! -f "${REF_FASTA}.fai" ]]; then
@@ -86,7 +88,7 @@ if [[ ! -f "${REF_FASTA}.fai" ]]; then
     exit 1
 fi
 
-N_SAMPLES=$(wc -l < "$FINAL_BAMLIST")
+N_SAMPLES=$(wc -l < "$FINAL_CRAMLIST")
 MININD=$(awk -v n="$N_SAMPLES" 'BEGIN { printf "%d", (n * 0.75) + 0.5 }')
 echo ">>> N samples : ${N_SAMPLES}"
 echo ">>> minInd    : ${MININD} (75% of N, matching the original's ~75% stringency)"
@@ -123,13 +125,13 @@ run_beagle_chrom() {
     if [[ -f "${out}.beagle.gz" ]]; then
         return 0
     fi
-    angsd -bam "$FINAL_BAMLIST" -ref "$REF_FASTA" -r "${chrom}:" \
+    angsd -bam "$FINAL_CRAMLIST" -ref "$REF_FASTA" -r "${chrom}:" \
         -GL 1 -doGlf 2 -doMajorMinor 1 -doMaf 1 -minMaf 0.01 -minQ 30 \
         -skipTriallelic 1 -SNP_pval 1e-6 -minInd "$MININD" \
         -P "$BEAGLE_THREADS_PER_JOB" -out "$out"
 }
 export -f run_beagle_chrom
-export FINAL_BAMLIST REF_FASTA BEAGLE_DIR MININD BEAGLE_THREADS_PER_JOB
+export FINAL_CRAMLIST REF_FASTA BEAGLE_DIR MININD BEAGLE_THREADS_PER_JOB
 
 xargs -a "$CHROM_LIST" -I{} -P "$ROH_PARALLEL_JOBS" bash -c 'run_beagle_chrom "$@"' _ {}
 
@@ -178,7 +180,7 @@ JOINT_OUT="${ROH_DIR}/joint"
 JOINT_BCF="${JOINT_OUT}.bcf"
 
 if [[ ! -f "$JOINT_BCF" ]]; then
-    angsd -bam "$FINAL_BAMLIST" -ref "$REF_FASTA" \
+    angsd -bam "$FINAL_CRAMLIST" -ref "$REF_FASTA" \
         -GL 1 -dobcf 1 -dopost 1 -domajorminor 1 -domaf 1 \
         -minQ 30 -SNP_pval 1e-6 -P "$THREADS" -out "$JOINT_OUT"
 fi
@@ -222,12 +224,12 @@ fi
 # Split the joint RG lines out per sample (bcftools roh RG columns:
 # RG, sample, chrom, start, end, length, n_markers, quality — matches
 # rohparser.py's expected field[5]=length, field[7]=quality).
-while IFS= read -r bam; do
-    sample=$(basename "$bam")
-    sample="${sample%_filt.bam}"
-    sample="${sample%_ds.bam}"
+while IFS= read -r cram; do
+    sample=$(basename "$cram")
+    sample="${sample%_filt.cram}"
+    sample="${sample%_ds.cram}"
     grep "^RG" "$ROH_RAW" | awk -v s="$sample" '$2==s' > "${ROH_DIR}/${sample}ROH.txt"
-done < "$FINAL_BAMLIST"
+done < "$FINAL_CRAMLIST"
 
 run_rohparser() {
     local roh_file="$1"

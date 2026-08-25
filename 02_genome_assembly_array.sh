@@ -394,6 +394,11 @@ for HAP in hap1 hap2; do
 
     bwa index "$CONTIGS"
 
+    # Stays BAM, not CRAM: yahs (Step 5) reads this file directly, and yahs
+    # only supports BAM/BED/PA5/BIN input — no CRAM support (confirmed
+    # against its own README/usage). Contrast with the Pretext-QC CRAM in
+    # Step 10, which is only ever read via `samtools view`, not by a tool
+    # that opens the file itself.
     HIC_BAM="${SCAFFOLD_DIR}/${SAMPLE}.${HAP}.hic2contigs.bam"
     bwa mem -5SP -t "$THREADS" "$CONTIGS" "$HIC_R1" "$HIC_R2" \
         | samtools view -@ "$THREADS" -buS -q "$HIC_MIN_MAPQ" - \
@@ -551,14 +556,19 @@ PYEOF
 
     bwa index "$FINAL_FASTA"
 
-    FINAL_HIC_BAM="${QC_DIR}/${SAMPLE}.${HAP}.hic2final.bam"
+    # CRAM here, not BAM: this file is only ever read via `samtools view`
+    # below (piped as SAM text to PretextMap, which never opens the file
+    # itself), so samtools' mature CRAM support applies cleanly. Contrast
+    # with $HIC_BAM in Step 4, which yahs reads directly and which must
+    # stay BAM — yahs only supports BAM/BED/PA5/BIN input, no CRAM.
+    FINAL_HIC_CRAM="${QC_DIR}/${SAMPLE}.${HAP}.hic2final.cram"
     bwa mem -5SP -t "$THREADS" "$FINAL_FASTA" "$HIC_R1" "$HIC_R2" \
         | samtools view -@ "$THREADS" -buS -q "$HIC_MIN_MAPQ" - \
-        | samtools sort -@ "$THREADS" -o "$FINAL_HIC_BAM" -
-    samtools index "$FINAL_HIC_BAM"
+        | samtools sort -@ "$THREADS" --output-fmt cram --reference "$FINAL_FASTA" -o "$FINAL_HIC_CRAM" -
+    samtools index "$FINAL_HIC_CRAM"
 
     PRETEXT_MAP="${QC_DIR}/${SAMPLE}.${HAP}.pretext"
-    samtools view -h "$FINAL_HIC_BAM" \
+    samtools view -h -T "$FINAL_FASTA" "$FINAL_HIC_CRAM" \
         | "$PRETEXTMAP_BIN" -o "$PRETEXT_MAP" --sortby length --sortorder descend --mapq "$HIC_MIN_MAPQ"
 
     "$PRETEXTSNAPSHOT_BIN" --map "$PRETEXT_MAP" --sequences "=full" \

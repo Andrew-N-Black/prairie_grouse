@@ -19,6 +19,16 @@
 #   - No mappability-mask / RepeatMasker BED restriction — filtering is
 #     quality-based only (matches the original's samtools view flags).
 #
+# STORAGE: the final quality-filtered output is CRAM, not BAM — this is the
+# one long-lived, per-sample artifact everything downstream (06/07/08)
+# consumes, so it's the step where CRAM's reference-based compression
+# actually pays off across ~500 samples aligned to the same LEPC reference.
+# The intermediate sort/MarkDuplicates steps stay BAM deliberately: GATK4
+# MarkDuplicates has a documented, still-open CRAM reliability issue
+# (broadinstitute/gatk#5218 — "valid CRAM reference was not supplied" even
+# when one is), so it's safer to keep that step on BAM and only convert at
+# the final samtools-view step, which has no such caveat.
+#
 # Depth here is NOT yet the final analysis depth — 06_downsample_and_
 # finalize.sh compares depths across both cohorts and downsamples any NEW
 # sample that exceeds the OLD cohort's empirical mean before anything
@@ -234,13 +244,15 @@ samtools index "$DEDUP_BAM"
 # =============================================================================
 # STEP 3: Quality filter (matches the original alignment.sh's samtools view
 # flags exactly — MAPQ>=30, proper pairs only, exclude unmapped/secondary/
-# qcfail/dup/supplementary; no BED restriction, per explicit instruction)
+# qcfail/dup/supplementary; no BED restriction, per explicit instruction).
+# Output is CRAM (-C), not BAM — see the STORAGE note at the top of this
+# script for why this is the step where the format switch happens.
 # =============================================================================
-echo ">>> Step 3: Quality filter (MAPQ>=30, -F 3844 -f 2)"
+echo ">>> Step 3: Quality filter (MAPQ>=30, -F 3844 -f 2) -> CRAM"
 
-FILT_BAM="${ALIGN_DIR}/${SAMPLE}_filt.bam"
-samtools view -@ "$THREADS" -q 30 -b -F 3844 -f 2 "$DEDUP_BAM" > "$FILT_BAM"
-samtools index "$FILT_BAM"
+FILT_CRAM="${ALIGN_DIR}/${SAMPLE}_filt.cram"
+samtools view -@ "$THREADS" -q 30 -C -T "$REF_FASTA" -F 3844 -f 2 "$DEDUP_BAM" > "$FILT_CRAM"
+samtools index "$FILT_CRAM"
 
 # =============================================================================
 # STEP 4: Per-sample depth (mean depth + breadth >=1x), matching the
@@ -249,7 +261,7 @@ samtools index "$FILT_BAM"
 echo ">>> Step 4: Coverage statistics"
 
 DEPTH_FILE="${DEPTH_DIR}/${SAMPLE}.depth.txt"
-samtools depth -a "$FILT_BAM" | awk -v sample="$SAMPLE" -v cohort="$COHORT" '
+samtools depth -a --reference "$REF_FASTA" "$FILT_CRAM" | awk -v sample="$SAMPLE" -v cohort="$COHORT" '
     { sum += $3; n++; if ($3 >= 1) covered++ }
     END {
         mean = (n > 0) ? sum / n : 0
