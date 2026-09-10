@@ -22,4 +22,5 @@ seqkit rmdup -n F5545.fastq.gz -o  F5545_dedup.fastq.gz -d duplicated_ids_F5545.
 
 zcat 20260901_1622_3C_PBM66906_d8a57dea_Sample_F5597/fastq_pass_F5597/*fastq.gz > F5597.fastq ; gzip F5597.fastq
 seqkit stats 20260901_1622_3C_PBM66906_d8a57dea_Sample_F5597/fastq_pass_F5597/*fastq.gz  -o multi_fastqs_F5597.txt
+seqkit stats F5597.fastq.gz -o single_fastqs_F5597.txt
 seqkit rmdup -n F5597.fastq.gz -o  F5597_dedup.fastq.gz -d duplicated_ids_F5597.txt
