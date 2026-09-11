@@ -6,9 +6,7 @@
 # NEW-cohort CRAMs). One array task per sample.
 #
 # Replicates the original heterozygosity.sh exactly (same ANGSD/realSFS
-# flags), run genome-wide against the full LEPC reference rather than the
-# original's 100kb-window subset (per explicit instruction — no windowing
-# scheme to replicate/fabricate). Input is CRAM, not BAM — ANGSD reads
+# flags). Input is CRAM, not BAM — ANGSD reads
 # CRAM natively via its htslib backend as long as -ref is provided (already
 # required here for the SAF/ancestral-state calculation anyway).
 #
@@ -17,21 +15,21 @@
 # heterozygosity estimate.
 #
 # USAGE:
-#   N=$(wc -l < <PROJECT_DIR>/final_cramlist.txt)
+#   N=$(wc -l < final_cramlist.txt)
 #   sbatch --array=0-$((N-1))%20 07_heterozygosity_array.sh
 # =============================================================================
 #SBATCH --job-name=lepc_het
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH -A fnrdewoody
-#SBATCH -t 1-00:00:00
+#SBATCH -A dewoody
+#SBATCH -t 3-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=50G
 #SBATCH -p cpu
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=${USER}@purdue.edu
+#SBATCH --mail-user=blackan@purdue.edu
 
 # =============================================================================
 # ENVIRONMENT SETUP
@@ -44,7 +42,7 @@ ml angsd
 # =============================================================================
 # USER-DEFINED VARIABLES
 # =============================================================================
-PROJECT_DIR="${CLUSTER_SCRATCH}/LEPC"
+PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/nexus"
 REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fa"
 FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
 HET_DIR="${PROJECT_DIR}/heterozygosity"
