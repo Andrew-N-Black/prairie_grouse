@@ -30,7 +30,7 @@ set -euo pipefail
 CHICKEN_ASM_DIR="GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b"
 CHICKEN_FTP_BASE="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/${CHICKEN_ASM_DIR}"
 
-REF_DIR="${CLUSTER_SCRATCH}/GROUSE_ASM/ref"
+REF_DIR="${CLUSTER_SCRATCH}/GROUSE/old_vs_new/ref"
 CHICKEN_FASTA="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.fna"
 CHICKEN_GFF="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.gff"
 
