@@ -16,13 +16,12 @@ set -euo pipefail
 # Subsample BAMs to a target mean depth, convert to CRAM,
 # then QC every output against the target.
 # ============================================================
-cp F*/*cram ALL/
 
 TARGET_DEPTH=4.66
 TOLERANCE=0.15          # flag if realized depth is off target by >15%
-REF="/scratch/gautschi/blackan/GROUSE/grouse_asm/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"     # required — used for CRAM + QC
-CRAM_DIR="/scratch/gautschi/blackan/GROUSE/out_new_sarek/preprocessing/markduplicates/ALL/"
-OUT_DIR="/scratch/gautschi/blackan/GROUSE/out_new_sarek/preprocessing/markduplicates/subsampled"
+REF="/scratch/gautschi/blackan/GROUSE/grouse_asm/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"
+CRAM_DIR="/scratch/gautschi/blackan/GROUSE/output_shotgun/preprocessing/markduplicates/ALL"
+OUT_DIR="/scratch/gautschi/blackan/GROUSE/output_shotgun/preprocessing/markduplicates/subsampled"
 SEED=42                 # fixed seed for reproducibility across samples
 THREADS=4
 
@@ -40,9 +39,8 @@ mean_depth () {
 }
  
 # ---------------- Step 1: subsample + convert to CRAM ----------------
-for cram in "$CRAM_DIR"/*md.cram; do
-    sample=$(basename "$cram" .cram)
-    sample=${sample%.md}       # strip trailing ".md" so output names aren't "sample.md.subsampled..."
+for cram in "$CRAM_DIR"/*md.dedup_q20.cram; do
+    sample=$(basename "$cram" .md.dedup_q20.cram)
     echo "=== Processing $sample ==="
  
     current_depth=$(mean_depth "$cram")
