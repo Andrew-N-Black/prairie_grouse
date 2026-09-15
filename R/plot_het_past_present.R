@@ -8,7 +8,15 @@ library(dplyr)
 #load metadata
 HET_FILT <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/sarek_old_new/old_new_heterozygosity.xlsx")
 #Plot
-ggplot(HET_FILT,aes(y=heterozygosity20x,fill=GRP))+geom_boxplot()+scale_fill_manual("", values =c("Past"="cadetblue","Present"="darkred"))+xlab("")+ylab("H")+theme_classic()+ theme(axis.text.y = element_text(size=12))+theme(legend.position="top")+theme(axis.text=element_text(size=14),axis.title=element_text(size=22,face="italic"))+theme(strip.text = element_text(size = 18))+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.ticks.x=element_blank())
+ggplot(HET_FILT, aes(x=GRP, y=heterozygosity20x, fill=GRP)) +
+    geom_boxplot() +
+    scale_fill_manual("", values=c("Past"="cadetblue","Present"="black")) +
+    xlab("") + ylab("H") +
+    theme_classic() +
+    theme(axis.text.y = element_text(size=12)) +
+    theme(legend.position="none") +
+    theme(axis.text=element_text(size=14), axis.title=element_text(size=22, face="italic")) +
+    theme(strip.text = element_text(size=18))
 
 
 #Test for normality
