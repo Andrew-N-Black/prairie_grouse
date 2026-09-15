@@ -24,13 +24,24 @@
 # original used (-minInd 348 of their N=~464) rather than a hardcoded
 # number, since N here depends on how many NEW samples end up sequenced.
 #
+# This version merges in the ROH pipeline fixes developed and confirmed
+# working separately (originally split out as 09_roh.sh) and adds a third
+# analysis, ROHan (Renaud et al. 2019), which estimates heterozygosity/ROH
+# directly from BAM/CRAM via its own genotype-likelihood model rather than
+# from called genotypes -- a useful cross-check against the ANGSD/bcftools
+# approach above. ROHan runs last since its module environment (a clean
+# gcc/samtools setup) is incompatible with the angsd/pcangsd/bcftools
+# modules the earlier steps need, and there's no reason to juggle both at
+# once when nothing later in the script needs the earlier modules again.
+# install_rohan.sh must have been run on the login node first.
+#
 # USAGE:
 #   sbatch 08_pca_roh.sh
 # =============================================================================
-#SBATCH --job-name=lepc_pca_roh
+#SBATCH --job-name=old.new_pca_roh
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A fnrdewoody
+#SBATCH -A dewoody
 #SBATCH -t 10-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -38,24 +49,15 @@
 #SBATCH --mem=250G
 #SBATCH -p cpu
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=${USER}@purdue.edu
+#SBATCH --mail-user=blackan@purdue.edu
 
-# =============================================================================
-# ENVIRONMENT SETUP
-# =============================================================================
 set -euo pipefail
-
-ml biocontainers
-ml angsd
-ml pcangsd
-ml bcftools
-ml python
 
 # =============================================================================
 # USER-DEFINED VARIABLES
 # =============================================================================
-PROJECT_DIR="${CLUSTER_SCRATCH}/LEPC"
-REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fa"
+PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/old_vs_new"
+REF_FASTA="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna"
 FINAL_CRAMLIST="${PROJECT_DIR}/final_cramlist.txt"
 HET_DIR="${PROJECT_DIR}/heterozygosity"
 
@@ -69,12 +71,23 @@ ROH_DIR="${PROJECT_DIR}/roh"
 # to point at our reference instead of the original's (different cluster).
 ROHPARSER_URL="https://raw.githubusercontent.com/Andrew-N-Black/LEPC-popgen/main/analysis/rohparser.py"
 ROHPARSER="${ROH_DIR}/rohparser.py"
-ROHPARSER_ORIG_FAI="/scratch/bell/blackan/LEPC/shotgun/ncbi/ref.fa.fai"
+ROHPARSER_ORIG_FAI="${PROJECT_DIR}/ref/GCF_026119805.1_pur_lepc_1.0_genomic.fna.fai"
 
 THREADS=$SLURM_CPUS_PER_TASK
 ROH_PARALLEL_JOBS=8
 
-mkdir -p logs "$BEAGLE_DIR" "$PCA_DIR" "$ROH_DIR"
+# ROHan-specific config (Step 8, run last -- see module note there)
+ROHAN_BIN="${PROJECT_DIR}/tools/ROHan/bin/rohan"
+GSL_PREFIX="${PROJECT_DIR}/tools/gsl"
+ROHAN_OUT_DIR="${PROJECT_DIR}/results/rohan"
+ROHAN_THREADS=16
+# ROHan's expected within-ROH heterozygosity rate parameter. ROHan's own
+# examples use something on the order of 2e-5; adjust if your species'
+# expected mutation rate differs substantially. Confirm the flag name is
+# still --rohmu with `rohan --help` if ROHan is ever rebuilt/updated.
+ROHMU=2e-5
+
+mkdir -p logs "$BEAGLE_DIR" "$PCA_DIR" "$ROH_DIR" "$ROHAN_OUT_DIR"
 
 echo ">>> 08_pca_roh.sh"
 echo ">>> Start time: $(date)"
@@ -94,7 +107,25 @@ echo ">>> N samples : ${N_SAMPLES}"
 echo ">>> minInd    : ${MININD} (75% of N, matching the original's ~75% stringency)"
 
 # =============================================================================
-# STEP 0: Aggregate per-sample heterozygosity results from 08 (each array
+# ANGSD/pcangsd/bcftools ENVIRONMENT (Steps 0-6 below)
+# =============================================================================
+ml biocontainers
+ml bcftools
+ml angsd/0.940
+ml pcangsd
+ml htslib
+# RCAC's xalt accounting hook injects LD_PRELOAD (libxalt_init.so) into
+# every command, including containerized ones. singularity forwards it
+# into the container by default, and the container's older glibc lacks
+# the GLIBC_2.33/2.34 symbols that library needs, so angsd/pcangsd abort
+# before running. Blanking it inside the container via these two env vars
+# is the reliable fix (a plain `unset LD_PRELOAD` on the host doesn't
+# hold — xalt is sticky and re-injects it):
+export SINGULARITYENV_LD_PRELOAD=""
+export APPTAINERENV_LD_PRELOAD=""
+
+# =============================================================================
+# STEP 0: Aggregate per-sample heterozygosity results from 07 (each array
 # task there wrote its own file to avoid a shared-file race).
 # =============================================================================
 echo ">>> Step 0: Aggregating heterozygosity results"
@@ -130,6 +161,12 @@ run_beagle_chrom() {
         -skipTriallelic 1 -SNP_pval 1e-6 -minInd "$MININD" \
         -P "$BEAGLE_THREADS_PER_JOB" -out "$out"
 }
+# angsd is a bash function (from `ml angsd/0.940`'s Lmod setup, wrapping the
+# singularity call), not a real binary on PATH. Functions don't propagate
+# into the fresh bash process `xargs ... bash -c` spawns unless each one is
+# individually exported with `export -f` — exporting run_beagle_chrom alone
+# is not enough, since its body calls angsd, which was never exported.
+export -f angsd
 export -f run_beagle_chrom
 export FINAL_CRAMLIST REF_FASTA BEAGLE_DIR MININD BEAGLE_THREADS_PER_JOB
 
@@ -183,6 +220,8 @@ if [[ ! -f "$JOINT_BCF" ]]; then
     angsd -bam "$FINAL_CRAMLIST" -ref "$REF_FASTA" \
         -GL 1 -dobcf 1 -dopost 1 -domajorminor 1 -domaf 1 \
         -minQ 30 -SNP_pval 1e-6 -P "$THREADS" -out "$JOINT_OUT"
+else
+    echo "  ${JOINT_BCF} already exists -- skipping ANGSD call. Delete it first for a clean rerun."
 fi
 
 if [[ ! -f "$JOINT_BCF" ]]; then
@@ -196,18 +235,26 @@ fi
 echo ">>> Step 4: Building allele-frequency file"
 
 FREQS="${ROH_DIR}/freqs.tab.gz"
-bcftools query -f '%CHROM\t%POS\t%REF,%ALT\t%AF\n' "$JOINT_BCF" | bgzip -c > "$FREQS"
-tabix -s1 -b2 -e2 "$FREQS"
+if [[ ! -f "$FREQS" ]]; then
+    bcftools query -f '%CHROM\t%POS\t%REF,%ALT\t%AF\n' "$JOINT_BCF" | bgzip -c > "$FREQS"
+    tabix -s1 -b2 -e2 "$FREQS"
+else
+    echo "  ${FREQS} already exists -- skipping."
+fi
 
 # =============================================================================
-# STEP 5: bcftools roh (flags match ROH.sh exactly)
+# STEP 5: bcftools roh (flags match ROH.sh exactly), streamed through grep
+# so the multi-GB per-site ST output never touches disk -- only the RG
+# (called-region) lines, which is all downstream parsing actually needs.
 # =============================================================================
 echo ">>> Step 5: bcftools roh"
 
-ROH_RAW="${ROH_DIR}/ROH_GROUSE_PLraw.txt"
-bcftools roh --AF-file "$FREQS" --output "$ROH_RAW" --threads "$THREADS" "$JOINT_BCF"
+ROH_RG_ONLY="${ROH_DIR}/ROH_GROUSE_PL_regions.txt"
+bcftools roh --AF-file "$FREQS" --threads "$THREADS" "$JOINT_BCF" \
+    | grep "^RG" > "$ROH_RG_ONLY"
 
-echo "  Raw ROH output: ${ROH_RAW}"
+echo "  RG (called-region) lines: ${ROH_RG_ONLY}"
+echo "  $(wc -l < "$ROH_RG_ONLY") regions called across all samples"
 
 # =============================================================================
 # STEP 6: Per-sample ROH parsing with rohparser.py (vendored from the
@@ -219,35 +266,130 @@ if [[ ! -f "$ROHPARSER" ]]; then
     echo ">>> Downloading rohparser.py"
     wget -q -O "$ROHPARSER" "$ROHPARSER_URL"
     sed -i "s|${ROHPARSER_ORIG_FAI}|${REF_FASTA}.fai|g" "$ROHPARSER"
+    # sed doesn't error or warn if ROHPARSER_ORIG_FAI didn't actually match
+    # anything in the downloaded file -- it just silently leaves the
+    # original (wrong-cluster) path in place. Fail loudly instead of
+    # discovering this later as silently-wrong ROH results.
+    if ! grep -qF "${REF_FASTA}.fai" "$ROHPARSER"; then
+        echo "ERROR: rohparser.py patch did not take -- ROHPARSER_ORIG_FAI" >&2
+        echo "  ('${ROHPARSER_ORIG_FAI}') was not found verbatim in the" >&2
+        echo "  downloaded script. Check the source hasn't changed its" >&2
+        echo "  hardcoded path, update ROHPARSER_ORIG_FAI to match, and" >&2
+        echo "  delete ${ROHPARSER} to force a fresh download+patch." >&2
+        exit 1
+    fi
 fi
 
-# Split the joint RG lines out per sample (bcftools roh RG columns:
-# RG, sample, chrom, start, end, length, n_markers, quality — matches
-# rohparser.py's expected field[5]=length, field[7]=quality).
-while IFS= read -r cram; do
-    sample=$(basename "$cram")
-    sample="${sample%_filt.cram}"
-    sample="${sample%_ds.cram}"
-    grep "^RG" "$ROH_RAW" | awk -v s="$sample" '$2==s' > "${ROH_DIR}/${sample}ROH.txt"
-done < "$FINAL_CRAMLIST"
+# Single pass over the RG-only file, splitting by sample. NOTE: bcftools
+# roh's sample column here is whatever the BCF's own header used as the
+# sample name -- and ANGSD's -dobcf output uses the full BAM/CRAM file path
+# as that identifier, not a bare sample ID (confirmed from the actual RG
+# lines: column 2 is a full "/scratch/.../crams/F10.md.dedup_q20.cram"
+# path). Using that path verbatim as a filename produces a broken, doubled
+# path, so derive a clean sample ID from its basename instead, stripping
+# this project's established CRAM suffix.
+awk -v dir="$ROH_DIR" '
+{
+    n = split($2, parts, "/")
+    sample = parts[n]
+    gsub(/\.md\.dedup_q20\.cram$/, "", sample)
+    print > (dir"/"sample"ROH.txt")
+}' "$ROH_RG_ONLY"
+
+N_SAMPLE_FILES=$(find "$ROH_DIR" -maxdepth 1 -name "*ROH.txt" ! -empty | wc -l)
+echo "  Split into ${N_SAMPLE_FILES} non-empty per-sample files (expected ${N_SAMPLES})"
+if [[ "$N_SAMPLE_FILES" -ne "$N_SAMPLES" ]]; then
+    echo "  WARNING: sample-file count doesn't match N_SAMPLES -- a sample may" >&2
+    echo "  have zero called ROH regions (possible, not necessarily a bug)," >&2
+    echo "  or something upstream is off. Compare against:" >&2
+    echo "    bcftools query -l ${JOINT_BCF}" >&2
+fi
 
 run_rohparser() {
+    # rohparser.py builds its own input path internally from a hardcoded
+    # directory + a bare filename (matching its documented usage: `cd` into
+    # the ROH directory, then `python ROHparser.py SAMPLEROH.txt`). Passing
+    # it a full path instead -- as a naive `find`-based invocation would --
+    # makes it concatenate a doubled, nonexistent path and fail. So: cd into
+    # the file's directory and pass only the basename.
     local roh_file="$1"
-    python3 "$ROHPARSER" "$roh_file" > "${roh_file}_results.txt"
+    local bn
+    bn=$(basename "$roh_file")
+    (cd "$(dirname "$roh_file")" && python3 "$ROHPARSER" "$bn") > "${roh_file}_results.txt"
 }
 export -f run_rohparser
 export ROHPARSER
 
-find "$ROH_DIR" -name "*ROH.txt" | xargs -I{} -P "$ROH_PARALLEL_JOBS" bash -c 'run_rohparser "$@"' _ {}
+find "$ROH_DIR" -maxdepth 1 -name "*ROH.txt" ! -empty \
+    | xargs -I{} -P "$ROH_PARALLEL_JOBS" bash -c 'run_rohparser "$@"' _ {}
 
-N_ROH_RESULTS=$(find "$ROH_DIR" -name "*ROH.txt_results.txt" | wc -l)
-echo "  Parsed ROH results for ${N_ROH_RESULTS} samples"
+N_ROH_RESULTS=$(find "$ROH_DIR" -maxdepth 1 -name "*ROH.txt_results.txt" | wc -l)
+echo "  Parsed ANGSD/bcftools ROH results for ${N_ROH_RESULTS} samples"
+
+# =============================================================================
+# STEP 7: ROHan (Renaud et al. 2019) -- per-sample heterozygosity/ROH
+# estimated directly from BAM/CRAM via its own genotype-likelihood model,
+# as a cross-check against the ANGSD/bcftools estimates above. Does NOT
+# take a VCF/BCF as input by design (that's the point of the tool -- it
+# stays upstream of hard-called genotypes). Requires install_rohan.sh to
+# have been run on the login node first.
+#
+# Runs LAST and does its own `module --force purge`: its build needs a
+# plain gcc/samtools environment incompatible with the angsd/pcangsd/
+# bcftools modules loaded above, and nothing after this point needs those
+# modules again.
+# =============================================================================
+echo ">>> Step 7: ROHan per-sample analysis"
+
+if [ ! -x "$ROHAN_BIN" ]; then
+    echo "ERROR: ROHan binary not found at $ROHAN_BIN" >&2
+    echo "  Run install_rohan.sh on the login node first." >&2
+    exit 1
+fi
+
+module --force purge
+module load gcc/14.1.0
+module load biocontainers
+module load samtools
+
+# rohan was linked against a custom-built GSL (no 'gsl' module exists on
+# Gautschi), so it needs this to find libgsl.so at runtime, not just at
+# build time -- see install_rohan.sh.
+export LD_LIBRARY_PATH="$GSL_PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+while IFS= read -r CRAM; do
+    SAMPLE=$(basename "$CRAM" | sed -E 's/\.md\.dedup_q20\.cram$//')
+    OUT_PREFIX="${ROHAN_OUT_DIR}/${SAMPLE}"
+    if [[ -f "${OUT_PREFIX}.hEst" ]]; then
+        echo "  ${SAMPLE}: ${OUT_PREFIX}.hEst already exists -- skipping."
+        continue
+    fi
+    echo "=== ROHan: $SAMPLE ==="
+
+    # ROHan's most reliably supported input format is BAM. Rather than rely
+    # on ROHan's own CRAM/reference handling (undocumented in what we could
+    # verify), convert to a temporary indexed BAM first -- slower, but
+    # removes any ambiguity about reference resolution.
+    TMP_BAM="${ROHAN_OUT_DIR}/${SAMPLE}.tmp.bam"
+    samtools view -@ "$ROHAN_THREADS" -b -T "$REF_FASTA" -o "$TMP_BAM" "$CRAM"
+    samtools index "$TMP_BAM"
+
+    "$ROHAN_BIN" \
+        -t "$ROHAN_THREADS" \
+        --rohmu "$ROHMU" \
+        -o "$OUT_PREFIX" \
+        "$REF_FASTA" "$TMP_BAM"
+
+    rm -f "$TMP_BAM" "${TMP_BAM}.bai"
+    echo "  Done: ${OUT_PREFIX}.*"
+done < "$FINAL_CRAMLIST"
 
 echo ""
-echo ">>> PCA + ROH analysis complete."
-echo "    Heterozygosity : ${HET_SUMMARY}"
-echo "    PCA            : ${PCA_DIR}/final.cov"
-echo "    Inbreeding     : ${PCA_DIR}/final_inbreed.*"
-echo "    Raw ROH        : ${ROH_RAW}"
-echo "    Per-sample ROH : ${ROH_DIR}/*ROH.txt_results.txt"
+echo ">>> PCA + ROH + ROHan analysis complete."
+echo "    Heterozygosity      : ${HET_SUMMARY}"
+echo "    PCA                 : ${PCA_DIR}/final.cov"
+echo "    Inbreeding          : ${PCA_DIR}/final_inbreed.*"
+echo "    Joint BCF           : ${JOINT_BCF}"
+echo "    ANGSD/bcftools ROH  : ${ROH_DIR}/*ROH.txt_results.txt"
+echo "    ROHan (per sample)  : ${ROHAN_OUT_DIR}/<sample>.hEst, .mid.hmmp, .mid.ROH"
 echo ">>> End time: $(date)"
