@@ -3,8 +3,7 @@ library(readxl)
 library(ggplot2)
 
 #Read in metadata
-metadata <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/sarek_nexus_new_plus_shotguns/nexus_extension_heterozygosity.xlsx")                             
-
+metadata <- read_xlsx("/Users/andrewblack/Documents/Research/GROUSE/sarek_nexus_new_plus_shotguns/heterozygosity_extended_nexus.xlsx")
 #Read in covariation matrix
 cov<-as.matrix(read.table("~/final.cov"))
 
@@ -18,6 +17,20 @@ head(axes$values/sum(axes$values)*100)
 #Bind vectors with metadata and plot
 PC1_3<-as.data.frame(axes$vectors[,1:3])
 x<-cbind(PC1_3,metadata)
- #By species and DPS
-ggplot(data=x, aes(y=V2, x=V1))+geom_point(size=7,color="black",aes(shape=metadata$DPS,fill=metadata$SPECIES))+ theme_classic() + xlab("PC1 (22.6%)") +ylab("PC2 (3.0%)")+geom_hline(yintercept=0,linetype="dashed")+geom_vline(xintercept =0,linetype="dashed")+scale_fill_manual("Species", values=c("goldenrod","brown","black","grey"))+scale_shape_manual("DPS", values=c(25,21,21,21))+ theme(legend.position = "top")
-
+ #By species and group
+ggplot(data=x, aes(y=V2, x=V1)) +
+    geom_point(size=6, color="black", aes(shape=GROUP, fill=SPECIES)) +
+    theme_classic() +
+    xlab("PC1 (22.6%)") + ylab("PC2 (3.0%)") +
+    geom_hline(yintercept=0, linetype="dashed") +
+    geom_vline(xintercept=0, linetype="dashed") +
+    scale_fill_manual("Species", values=c("goldenrod","brown","black","grey")) +
+    scale_shape_manual("Group", values=c(25,21)) +
+    theme(legend.position = "right") +
+    guides(
+        fill = guide_legend(override.aes = list(shape=21, size=5, stroke=0.5)),
+        shape = guide_legend(override.aes = list(fill="grey50", size=5))
+    )+guides(
+        fill = guide_legend(override.aes = list(shape=21, size=5, stroke=0.5)),
+        shape = guide_legend(override.aes = list(fill=NA, size=5))
+    )
