@@ -34,7 +34,7 @@ set -euo pipefail
 # Chicken (Gallus gallus) RefSeq reference — GCF_016699485.2 / GRCg7b
 CHICKEN_ASM_DIR="GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b"
 CHICKEN_FTP_BASE="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/${CHICKEN_ASM_DIR}"
-CHICKEN_REF_DIR="${CLUSTER_SCRATCH}/grouse_asm/ref"
+CHICKEN_REF_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm/ref"
 CHICKEN_FASTA="${CHICKEN_REF_DIR}/${CHICKEN_ASM_DIR}_genomic.fna"
 CHICKEN_GFF="${CHICKEN_REF_DIR}/${CHICKEN_ASM_DIR}_genomic.gff"
 
@@ -44,7 +44,7 @@ CHICKEN_GFF="${CHICKEN_REF_DIR}/${CHICKEN_ASM_DIR}_genomic.gff"
 # without updating those scripts too.
 LEPC_ASM_DIR="GCF_026119805.1_pur_lepc_1.0"
 LEPC_FTP_BASE="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/026/119/805/${LEPC_ASM_DIR}"
-LEPC_REF_DIR="${CLUSTER_SCRATCH}/LEPC/ref"
+LEPC_REF_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm/ref"
 LEPC_FASTA_GZ="${LEPC_REF_DIR}/${LEPC_ASM_DIR}_genomic.fa.gz"
 LEPC_FASTA="${LEPC_REF_DIR}/${LEPC_ASM_DIR}_genomic.fa"
 
