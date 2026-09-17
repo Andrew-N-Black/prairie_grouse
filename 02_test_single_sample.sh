@@ -101,7 +101,7 @@ ml minimap2
 # (chicken reference, yahs conda env, juicer_tools.jar) — reused as-is, not
 # rebuilt. Only output paths differ (nested under test_single_sample/).
 # =============================================================================
-PROJECT_DIR="${CLUSTER_SCRATCH}/grouse_asm"
+PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm"
 REF_DIR="${PROJECT_DIR}/ref"
 
 TEST_DIR="${PROJECT_DIR}/test_single_sample"
