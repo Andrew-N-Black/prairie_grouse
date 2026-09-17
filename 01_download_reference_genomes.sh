@@ -13,7 +13,7 @@
 #SBATCH --job-name=ref_genomes
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A fnrdewoody
+#SBATCH -A dewoody
 #SBATCH -t 0-04:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -21,7 +21,7 @@
 #SBATCH --mem=8G
 #SBATCH -p cpu
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=${USER}@purdue.edu
+#SBATCH --mail-user=blackan@purdue.edu
 
 # =============================================================================
 # ENVIRONMENT SETUP
@@ -34,7 +34,7 @@ set -euo pipefail
 # Chicken (Gallus gallus) RefSeq reference — GCF_016699485.2 / GRCg7b
 CHICKEN_ASM_DIR="GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b"
 CHICKEN_FTP_BASE="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/${CHICKEN_ASM_DIR}"
-CHICKEN_REF_DIR="${CLUSTER_SCRATCH}/GROUSE_ASM/ref"
+CHICKEN_REF_DIR="${CLUSTER_SCRATCH}/grouse_asm/ref"
 CHICKEN_FASTA="${CHICKEN_REF_DIR}/${CHICKEN_ASM_DIR}_genomic.fna"
 CHICKEN_GFF="${CHICKEN_REF_DIR}/${CHICKEN_ASM_DIR}_genomic.gff"
 
