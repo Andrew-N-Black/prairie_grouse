@@ -17,12 +17,12 @@
 # be mistaken for real array output later.
 #
 # USAGE:
-#   export SAMPLE="your_sample_id"
-#   export SPECIES="your_species_label"          # matches assembly_manifest.tsv convention
-#   export HIFI_BAMS="/path/to/sample.hifi_reads.bc0001.bam,/path/to/sample2.hifi_reads.bc0002.bam"
-#   export HIC_R1="/path/to/hic_R1.fastq.gz"
-#   export HIC_R2="/path/to/hic_R2.fastq.gz"
-#   export ONT_UL="NA"                            # or a real path if this sample has UL reads
+#   export SAMPLE="F5545"
+#   export SPECIES="LEPC"          # matches assembly_manifest.tsv convention
+#   export HIFI_BAMS="/scratch/gautschi/blackan/GROUSE/grouse_asm/raw/HiFi/F5545_m84221_260821_060307_s2.hifi_reads.bc2184.bam"
+#   export HIC_R1="/scratch/gautschi/blackan/GROUSE/grouse_asm/raw/Hi-C/F5545_GACTTGTG-CCTGTCAA_L008_R1_001.fastq.gz"
+#   export HIC_R2="/scratch/gautschi/blackan/GROUSE/grouse_asm/raw/Hi-C/F5545_GACTTGTG-CCTGTCAA_L008_R2_001.fastq.gz"
+#   export ONT_UL="/scratch/gautschi/blackan/GROUSE/grouse_asm/raw/ONT/F5545_ul_100kb.fastq.gz"                          
 #   sbatch 02_test_single_sample.sh
 #
 #   HIFI_BAMS should point at the raw, unaligned PacBio HiFi BAM(s) straight
@@ -37,15 +37,15 @@
 #SBATCH --job-name=grouse_asm_test
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A fnrdewoody
-#SBATCH -t 10-00:00:00
+#SBATCH -A dewoody
+#SBATCH -t 1-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=48
 #SBATCH --mem=250G
 #SBATCH -p cpu
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=${USER}@purdue.edu
+#SBATCH --mail-user=blackan@purdue.edu
 
 # =============================================================================
 # ENVIRONMENT SETUP
@@ -101,7 +101,7 @@ ml minimap2
 # (chicken reference, yahs conda env, juicer_tools.jar) — reused as-is, not
 # rebuilt. Only output paths differ (nested under test_single_sample/).
 # =============================================================================
-PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE_ASM"
+PROJECT_DIR="${CLUSTER_SCRATCH}/grouse_asm"
 REF_DIR="${PROJECT_DIR}/ref"
 
 TEST_DIR="${PROJECT_DIR}/test_single_sample"
