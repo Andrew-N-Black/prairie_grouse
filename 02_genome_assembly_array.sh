@@ -110,7 +110,7 @@ ml minimap2
 # =============================================================================
 MANIFEST="${SLURM_SUBMIT_DIR}/assembly_manifest.tsv"
 
-PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE_ASM"
+PROJECT_DIR="${CLUSTER_SCRATCH}/grouse_asm"
 REF_DIR="${PROJECT_DIR}/ref"
 FILT_DIR="${PROJECT_DIR}/hifi_filtered"
 ASM_DIR="${PROJECT_DIR}/hifiasm"
@@ -190,7 +190,7 @@ NEED_ANACONDA=false
 [[ ! -f "$HIFIADAPTERFILT_SCRIPT" ]] && NEED_ANACONDA=true
 
 if [[ "$NEED_ANACONDA" == true ]]; then
-    ml anaconda/2025.12-py313
+    ml biocontainers anaconda/2025.12-py313
 
     if [[ ! -x "$YAHS_BIN" || ! -x "$JUICER_BIN" ]]; then
         echo ">>> Installing yahs v${YAHS_VERSION} via conda (bioconda)"
