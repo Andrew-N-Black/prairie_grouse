@@ -13,12 +13,14 @@ ml bioconda
 ml anaconda
 conda activate pbtk
 
-#pbmerge -o F578_MERGED.bam F5478_m84221_260820_001659_s4.hifi_reads.bc2174.bam F5478_m84221_260901_214100_s2.hifi_reads.bc2174.bam
 
-#pbmerge -o F5480_MERGED.bam F5480_pool_10_m84221_260821_081306_s3.hifi_reads.bc2175.bam F5480_pool_9_m84221_260821_060307_s2.hifi_reads.bc2175.bam
+pbmerge -o F5462_MERGED.bam F5478_m84221_26 F5462_m84221_260811_163620_s4.hifi_reads.bc2170.bam F5462_m84221_260901_214100_s2.hifi_reads.bc2170.bam
 
-#pbmerge -o F5502_MERGED.bam F5502_m84221_260821_081306_s3.hifi_reads.bc2177.bam F5502_m84221_260901_214100_s2.hifi_reads.bc2177.bam
+pbmerge -o F578_MERGED.bam F5478_m84221_260820_001659_s4.hifi_reads.bc2174.bam F5478_m84221_260901_214100_s2.hifi_reads.bc2174.bam
+
+pbmerge -o F5480_MERGED.bam F5480_pool_10_m84221_260821_081306_s3.hifi_reads.bc2175.bam F5480_pool_9_m84221_260821_060307_s2.hifi_reads.bc2175.bam
+
+pbmerge -o F5502_MERGED.bam F5502_m84221_260821_081306_s3.hifi_reads.bc2177.bam F5502_m84221_260901_214100_s2.hifi_reads.bc2177.bam
 
 pbmerge -o F5595_MERGED.bam F5595_m84221_260819_220655_s3.hifi_reads.bc2186.bam F5595_m84221_260901_214100_s2.hifi_reads.bc2328.bam
 
-mv F5595_m84221_* reseq/
