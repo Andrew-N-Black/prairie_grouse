@@ -10,7 +10,8 @@ genome assembly and quality control** of three prairie grouse species:
 | Sharp-tailed Grouse | STGR | *T. phasianellus* |
 
 **n = 23 individuals × 2 haplotypes = 46 assemblies.** PacBio HiFi + Hi-C
-(Omni-C) throughout, with ONT ultra-long reads for three samples.
+(Omni-C) throughout, plus ONT ultra-long reads supplied to hifiasm via `--ul`
+for any sample whose manifest row gives an `ont_ul` path (`NA` means none).
 
 Assemblies are ordered against the **rock ptarmigan** reference
 (*Lagopus muta*, bLagMut1, `GCF_023343835.1`), and annotations are transferred
@@ -160,9 +161,17 @@ separated, in this column order:
 sample_id  species  hifi_bams  hic_r1  hic_r2  ont_ul
 ```
 
-`hifi_bams` may be a comma-separated list; `ont_ul` may be empty. Every step
-that loops over samples reads this file and indexes it by `SLURM_ARRAY_TASK_ID`,
-so the row order defines the array indices — don't reorder it between steps.
+`hifi_bams` may be a comma-separated list; `ont_ul` is a path or `NA`. Every
+step that loops over samples reads this file and indexes it by
+`SLURM_ARRAY_TASK_ID`, so the row order defines the array indices — don't
+reorder it between steps.
+
+> **Note:** the seven LEPC rows currently carry a **trailing space** in the
+> `species` field (`"LEPC "`). Output filenames are built from that field
+> verbatim, so those assemblies are named `LEPC _F5540_hap1...` with the space.
+> It is self-consistent — every step reads the same manifest — but worth
+> cleaning up, and it must be fixed in the pangenome repo's copy at the same
+> time, since that repo builds the same paths.
 
 ---
 
