@@ -9,13 +9,37 @@ genome assembly and quality control** of three prairie grouse species:
 | Greater Prairie-Chicken | GRPC | *T. cupido* |
 | Sharp-tailed Grouse | STGR | *T. phasianellus* |
 
-**n = 23 individuals × 2 haplotypes = 46 assemblies.** PacBio HiFi + Hi-C
-(Omni-C) throughout, plus ONT ultra-long reads supplied to hifiasm via `--ul`
-for any sample whose manifest row gives an `ont_ul` path (`NA` means none).
+**n = 23 individuals × 2 haplotypes = 46 assemblies** (7 LEPC, 6 GRPC,
+10 STGR). PacBio HiFi + Hi-C throughout, plus ONT ultra-long reads supplied to hifiasm via `--ul`
+for any sample whose manifest row gives an `ont_ul` path (`NA` means none;
+currently F5545 LEPC and F5597 GRPC). STGR F5468 was also sequenced with ONT-UL,
+but yield was too low for hifiasm, so it was assembled from HiFi + Hi-C only
+(its manifest `ont_ul` is `NA`).
 
 Assemblies are ordered against the **rock ptarmigan** reference
 (*Lagopus muta*, bLagMut1, `GCF_023343835.1`), and annotations are transferred
 from it.
+
+This repository is the code for **Objective 3** of the USFWS report *Grouse
+genomics, October 2026* ("Haplotype-resolved reference genomes"). SLURM
+account: `fnrdewoody`. Sequence data: NCBI BioProject PRJNA1513026
+(embargoed).
+
+| Report item | Produced by |
+|---|---|
+| Assembly, scaffolding, QA/QC methods | steps 02, 05, 05b, 11 |
+| Figure S5 (contiguity: scaffolds, length, N50) | QUAST from step 05 -> `accessory_scripts/plot_assembly_contiguity.R` |
+| Figure S6 (BUSCO completeness, 46 assemblies + ptarmigan) | steps 07, 08, 09 |
+| Figures 12-13 (BUSCO karyotype and synteny; LEPC F5540, GRPC F5595, STGR F5457 hap1 + ptarmigan) | step 09 |
+| Table S3 (sex from Z/W content; with CHD1 PCR, Figure S7) | step 10 |
+| Table S4 (assembly chromosome names vs chicken GRCg7b karyotype) | steps 01 + 04 |
+| Unsupported RagTag joins (chr_2) | step 11 |
+
+The superseded **chicken-guided** version of this pipeline is archived,
+unchanged, in [`chicken_reference_chain/`](chicken_reference_chain) for
+reference only; nothing in it is part of the current workflow or the report.
+Chicken GRCg7b is still downloaded (step 01), but only so step 04 can relate
+ptarmigan chromosome numbers to the chicken karyotype.
 
 ---
 
@@ -74,6 +98,7 @@ jobs over the 23 samples; the rest are single jobs.
 | 03 | [`03_ptarmigan_reference.sh`](03_ptarmigan_reference.sh) | Rock ptarmigan FASTA + GFF3 + accession→chromosome map, resolving the NCBI directory name at runtime. Prints the karyotype it found and flags size-rank naming. | single, 2 h |
 | 04 | [`04_chromosome_homology.sh`](04_chromosome_homology.sh) + [`.py`](04_chromosome_homology.py) | Aligns ptarmigan to chicken (`minimap2 -x asm20`) and works out which chicken chromosome each ptarmigan chromosome corresponds to. **This is where the karyotype findings above come from.** Writes the correspondence table, the summary, and a rename map. | single, 24 cpu, 8 h |
 | 05 | [`05_ragtag_liftoff_array.sh`](05_ragtag_liftoff_array.sh) | **The reference-guided half.** RagTag ordering → chromosome naming → QUAST → Liftoff → orientation dot plot → Hi-C realignment + Pretext contact map → tidk → HiFi depth check. Reads step 02's yahs scaffolds; never writes to them. | array ×23, 24 cpu, 96 G, 3 d |
+| 05b | [`05b_relabel_male_W.sh`](05b_relabel_male_W.sh) | Males (ZZ) have no W: anything RagTag placed on ptarmigan chr_W in a male haplotype is renamed `scaffold_N` (>= 50 kb) or moved to `unplaced_short` (< 50 kb), with the GFF3 updated and a log written. The six ZW females are never touched. | login node, minutes |
 | 06 | [`06_rename_chromosomes.sh`](06_rename_chromosomes.sh) + [`.py`](06_rename_chromosomes.py) | Renames chromosomes consistently across every derived file (FASTA, GFF3, AGP, CRAM, BUSCO tables). **Only needed if step 05 ran with `CHR_NAMING=homology`** — its default produces the final names directly. | single, 4 h |
 | 07 | [`07_busco_array.sh`](07_busco_array.sh) | Splits chr_Z / chr_W / chr_MT into their own FASTAs, then BUSCO v5.4.7 genome mode (metaeuk) against `aves_odb10` (8,338 orthologs) on the full assembly. | array ×23, 24 cpu, 2 d |
 | 08 | [`08_ptarmigan_reference_busco.sh`](08_ptarmigan_reference_busco.sh) | Runs the ptarmigan reference through the identical BUSCO treatment, so it can be drawn alongside the grouse and so every ortholog gets a reference chromosome. Required by step 10's third check. | single, 24 cpu, 1 d |
@@ -94,6 +119,7 @@ sbatch --array=0-$((N-1))%6 02_assembly_scaffold_array.sh
 # ... then, once every sample has finished:
 sbatch --array=0-$((N-1))%6 05_ragtag_liftoff_array.sh
 
+bash   05b_relabel_male_W.sh                    # after 05 (and 06, if used)
 sbatch --array=0-$((N-1))%8 07_busco_array.sh
 sbatch 08_ptarmigan_reference_busco.sh
 sbatch 09_busco_plots.sh                       # after 07 and 08
@@ -180,7 +206,8 @@ reorder it between steps.
 [`accessory_scripts/`](accessory_scripts) holds the data-preparation utilities
 that run before step 02: ONT ultra-long extraction and QC, HiFi re-sequencing
 merges, and parallel decompression. They are run by hand, per dataset, as
-needed.
+needed. It also holds `plot_assembly_contiguity.R`, which draws report
+Figure S5 from the final QUAST values (run locally).
 
 ---
 

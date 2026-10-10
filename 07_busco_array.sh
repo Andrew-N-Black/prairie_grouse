@@ -80,7 +80,7 @@
 #SBATCH --job-name=grouse_busco_ptarmigan
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH -A dewoody
+#SBATCH -A fnrdewoody
 #SBATCH -t 2-00:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

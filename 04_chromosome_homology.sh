@@ -56,7 +56,7 @@
 #SBATCH --job-name=chr_homology
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A dewoody
+#SBATCH -A fnrdewoody
 #SBATCH -t 08:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

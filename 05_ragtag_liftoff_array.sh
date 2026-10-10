@@ -50,7 +50,7 @@
 #SBATCH --job-name=grouse_ragtag_ptarmigan
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH -A dewoody
+#SBATCH -A fnrdewoody
 # 3 days covers both haplotypes with DO_HIC=true AND DO_DEPTH=true: bwa mem over
 # the Hi-C library dominates, and the HiFi realignment for the depth check adds a
 # second full-library pass. With both off this finishes in well under a day —

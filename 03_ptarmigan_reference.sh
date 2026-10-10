@@ -58,7 +58,7 @@
 #SBATCH --job-name=ptarmigan_ref_dl
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A dewoody
+#SBATCH -A fnrdewoody
 #SBATCH -t 02:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
