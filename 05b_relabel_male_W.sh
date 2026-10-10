@@ -1,28 +1,30 @@
 #!/bin/bash
 # =============================================================================
-# Relabel chr_W in MALE (ZZ) haplotypes as unplaced sequence — both trees.
+# Step 05b -- relabel chr_W in MALE (ZZ) haplotypes as unplaced sequence.
+# Run after 05_ragtag_liftoff_array.sh (and 06 if used), before 07_busco_array.sh.
 #
 # Males have no W chromosome. Anything RagTag placed on the reference W in a
 # male is repeat / Z-gametolog sequence, so it is renamed scaffold_N (next free
 # number, never colliding with an existing name). Females are never touched.
 #
 #   >= 50 kb  -> stays in <prefix>.pseudo_chr.fasta as scaffold_N
-#   <  50 kb  -> moved to <prefix>.unplaced_short.fasta (same rule as step 09)
+#   <  50 kb  -> moved to <prefix>.unplaced_short.fasta (same rule as step 05)
 #
 # Also renames chr_W in the matching .liftoff.gff3, saves the original chr_W
 # sequence to <prefix>.chrW_original.fa, and logs every change to
 # <tree>/W_relabel_log.tsv.
 #
 # By default it processes EVERY final-assembly directory it finds among
-# CANDIDATE_TREES below (chicken_guided/final, plus the ptarmigan tree wherever
-# it currently lives) and reports any it cannot find.
+# CANDIDATE_TREES below (the ptarmigan tree, wherever it currently lives) and
+# reports any it cannot find. (The archived chicken-guided tree,
+# chicken_guided/final, can still be processed with TREE=chicken_guided/final.)
 #
 # Safe to rerun: a haplotype with no chr_W left is skipped.
 #
 # USAGE (login node is fine; it takes minutes):
-#   MALES="F5457" bash relabel_male_W.sh                       # test, both trees
-#   bash relabel_male_W.sh                                     # all males, both trees
-#   TREE=chicken_guided/final bash relabel_male_W.sh           # one tree only
+#   MALES="F5457" bash 05b_relabel_male_W.sh                   # test on one male
+#   bash 05b_relabel_male_W.sh                                 # all 17 males
+#   TREE=final_ptarmigan bash 05b_relabel_male_W.sh            # one tree only
 # =============================================================================
 set -euo pipefail
 
@@ -33,7 +35,6 @@ MIN="${MIN:-50000}"
 # processed. Several ptarmigan locations are listed so this keeps working if
 # that tree is moved too. TREE=<path> overrides the whole list.
 CANDIDATE_TREES=(
-    "chicken_guided/final"
     "final_ptarmigan"
     "ptarmigan_guided/final_ptarmigan"
     "ptarmigan_guided/final"
@@ -68,7 +69,7 @@ if ! command -v samtools >/dev/null 2>&1; then
     echo "       What the shell sees:"
     type -a samtools 2>&1 | sed 's/^/         /' || true
     echo "       Is the module function available here?  type module -> $(type -t module || echo none)"
-    echo "       Workaround: run it as a job instead —  sbatch --wrap='bash relabel_male_W.sh' -A dewoody -p cpu -t 1:00:00"
+    echo "       Workaround: run it as a job instead —  sbatch --wrap='bash 05b_relabel_male_W.sh' -A dewoody -p cpu -t 1:00:00"
     exit 1
 fi
 echo ">>> samtools: $(command -v samtools)"

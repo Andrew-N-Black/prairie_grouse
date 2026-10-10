@@ -1,6 +1,6 @@
 # =============================================================================
 # plot_assembly_contiguity.R
-# Figure to replace Table S3: contiguity of the 46 haplotype-resolved,
+# USFWS report Objective 3, Figure S5: contiguity of the 46 haplotype-resolved,
 # pseudo-chromosome-scale prairie grouse assemblies (QUAST, final RagTag-ordered
 # assemblies after removal of unplaced scaffolds < 50 kb).
 #
@@ -44,7 +44,7 @@ F5599 GRPC 258 368 972.9 1080.3 65.51 70.54
 F5600 GRPC 247 389 978.9 1081.7 66.15 70.95
 ")
 
-# W-bearing haplotypes of the six females (Table S4 / CHD1 PCR)
+# W-bearing haplotypes of the six females (Table S3; CHD1 PCR, Figure S7)
 w_hap <- c("F5503_hap1", "F5595_hap2", "F5596_hap2",
            "F5598_hap1", "F5599_hap1", "F5600_hap1")
 

@@ -28,9 +28,9 @@
 # Pure standard library — no pandas, no plotting. Runs in seconds on a login
 # node:
 #     python3 10_sex_chromosome_check.py \
-#         --final-dir $CLUSTER_SCRATCH/GROUSE/grouse_asm/final \
-#         --busco-dir $CLUSTER_SCRATCH/GROUSE/grouse_asm/qc/busco \
-#         --out-dir   $CLUSTER_SCRATCH/GROUSE/grouse_asm/qc/sex_chromosome_check
+#         --final-dir $CLUSTER_SCRATCH/GROUSE/grouse_asm/final_ptarmigan \
+#         --busco-dir $CLUSTER_SCRATCH/GROUSE/grouse_asm/qc_ptarmigan/busco \
+#         --out-dir   $CLUSTER_SCRATCH/GROUSE/grouse_asm/qc_ptarmigan/sex_chromosome_check
 # =============================================================================
 
 import argparse

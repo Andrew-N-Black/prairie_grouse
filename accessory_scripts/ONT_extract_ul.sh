@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=grouse_ONT
-#SBATCH -A dewoody
+#SBATCH -A fnrdewoody
 #SBATCH -t 15:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

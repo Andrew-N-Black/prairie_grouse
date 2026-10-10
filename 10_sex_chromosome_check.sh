@@ -37,7 +37,7 @@
 #SBATCH --job-name=grouse_sexcheck_ptarmigan
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A dewoody
+#SBATCH -A fnrdewoody
 #SBATCH -t 00:30:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
