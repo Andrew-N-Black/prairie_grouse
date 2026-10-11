@@ -73,7 +73,7 @@
 #SBATCH --job-name=grouse_joinsupport_ptarmigan
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
-#SBATCH -A fnrdewoody
+#SBATCH -A dewoody
 #SBATCH -t 08:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

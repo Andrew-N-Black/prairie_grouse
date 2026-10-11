@@ -69,7 +69,7 @@
 #SBATCH --job-name=grouse_buscoplots_ptarmigan
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH -A fnrdewoody
+#SBATCH -A dewoody
 #SBATCH -t 04:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

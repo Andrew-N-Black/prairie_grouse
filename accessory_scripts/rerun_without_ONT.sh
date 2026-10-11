@@ -40,7 +40,7 @@ SAMPLES=(F5545 F5597)
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm"
 ASM_REPO="${ASM_REPO:-${HOME}/prairie_grouse}"       # cluster clone, assembly repo
 PG_REPO="${PG_REPO:-${HOME}/grouse_pangenome}"       # cluster clone, pangenome repo
-ACCOUNT="${ACCOUNT:-fnrdewoody}"                     # for the small wrapper jobs
+ACCOUNT="${ACCOUNT:-dewoody}"   # SLURM account for EVERY job submitted here (overrides #SBATCH -A in the scripts)
 ARCHIVE="${PROJECT_DIR}/archive_with_ONT"            # old outputs are moved here
 STAGES="${STAGES:-A}"                                # first stage to submit (A..I)
 
@@ -115,7 +115,7 @@ prepare)
     for s in "${SAMPLES[@]}"; do targets "$s"; done | sed 's/^/  /'
     ;;
 submit)
-    sb() { sbatch --parsable "$@"; }
+    sb() { sbatch --parsable -A "$ACCOUNT" "$@"; }
     dep() { [[ -n "${1:-}" ]] && echo "--dependency=afterok:$1" || true; }
     order=(A B C D E F G H I); start=0
     for i in "${!order[@]}"; do [[ "${order[$i]}" == "$STAGES" ]] && start=$i; done

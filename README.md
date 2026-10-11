@@ -24,7 +24,7 @@ from it.
 
 This repository is the code for **Objective 3** of the USFWS report *Grouse
 genomics, October 2026* ("Haplotype-resolved reference genomes"). SLURM
-account: `fnrdewoody`. Sequence data: NCBI BioProject PRJNA1513026
+account: `dewoody` (Gautschi; `fnrdewoody` is the Negishi account). Sequence data: NCBI BioProject PRJNA1513026
 (embargoed).
 
 | Report item | Produced by |
