@@ -10,11 +10,13 @@ genome assembly and quality control** of three prairie grouse species:
 | Sharp-tailed Grouse | STGR | *T. phasianellus* |
 
 **n = 23 individuals × 2 haplotypes = 46 assemblies** (7 LEPC, 6 GRPC,
-10 STGR). PacBio HiFi + Hi-C throughout, plus ONT ultra-long reads supplied to hifiasm via `--ul`
-for any sample whose manifest row gives an `ont_ul` path (`NA` means none;
-currently F5545 LEPC and F5597 GRPC). STGR F5468 was also sequenced with ONT-UL,
-but yield was too low for hifiasm, so it was assembled from HiFi + Hi-C only
-(its manifest `ont_ul` is `NA`).
+10 STGR), all assembled from **PacBio HiFi + Hi-C only**. Step 02 still supports ONT
+ultra-long reads (`--ul`, for any manifest row whose `ont_ul` is a path rather than `NA`),
+but none are used: three birds were sequenced with ONT-UL; F5468's yield was too low,
+and F5545 (LEPC) and F5597 (GRPC), first assembled with `--ul`, had Merqury QV 51.7-55.9
+against 62.2-64.7 for HiFi-only haplotypes, with no gain in contiguity, so they were
+re-assembled without it ([`accessory_scripts/rerun_without_ONT.sh`](accessory_scripts/rerun_without_ONT.sh);
+the ONT-based outputs are kept in `grouse_asm/archive_with_ONT/`).
 
 Assemblies are ordered against the **rock ptarmigan** reference
 (*Lagopus muta*, bLagMut1, `GCF_023343835.1`), and annotations are transferred
@@ -30,7 +32,7 @@ account: `fnrdewoody`. Sequence data: NCBI BioProject PRJNA1513026
 | Assembly, scaffolding, QA/QC methods | steps 02, 05, 05b, 11 |
 | Figure S5 (contiguity: scaffolds, length, N50) | QUAST from step 05 -> `accessory_scripts/plot_assembly_contiguity.R` |
 | Figure S6 (BUSCO completeness, 46 assemblies + ptarmigan) | steps 07, 08, 09 |
-| Figures 12-13 (BUSCO karyotype and synteny; LEPC F5540, GRPC F5595, STGR F5457 hap1 + ptarmigan) | step 09 |
+| Figures 13-14 (BUSCO karyotype and synteny; LEPC F5540, GRPC F5595, STGR F5457 hap1 + ptarmigan) | step 09 |
 | Table S3 (sex from Z/W content; with CHD1 PCR, Figure S7) | step 10 |
 | Table S4 (assembly chromosome names vs chicken GRCg7b karyotype) | steps 01 + 04 |
 | Unsupported RagTag joins (chr_2) | step 11 |
