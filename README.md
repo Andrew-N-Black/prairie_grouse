@@ -58,7 +58,7 @@ aligning the two references to each other (step 04) and then testing each
 proposed join against the grouse Hi-C data (step 11):
 
 - **Chicken chromosomes 6 and 8 are a single chromosome** in ptarmigan and in
-  all three *Tympanuchus* species (ptarmigan chr_5; 65.85 Mb in grouse against
+  all three *Tympanuchus* species (ptarmigan chr_5; 65.82 Mb in grouse (median) against
   65.80 + ptarmigan 65.88, i.e. 99.9% of the length accounted for).
 - **The short arm of chicken chromosome 4 (GGA4p) is a free-standing
   chromosome** here (ptarmigan chr_13, 19.05 Mb). Chicken carries a fusion that
