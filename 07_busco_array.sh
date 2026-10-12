@@ -263,6 +263,7 @@ if [[ -z "$LINE" ]]; then
 fi
 
 IFS=$'\t' read -r SAMPLE SPECIES _REST <<< "$LINE"
+SPECIES="${SPECIES//[[:space:]]/}"   # manifest species may carry stray spaces ("LEPC ")
 if [[ -z "${SAMPLE:-}" || -z "${SPECIES:-}" ]]; then
     echo "ERROR: Malformed manifest row at index ${SLURM_ARRAY_TASK_ID}: ${LINE}"
     exit 1

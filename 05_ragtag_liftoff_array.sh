@@ -335,6 +335,7 @@ fi
 
 # Same column layout as step 02: sample, species, hifi bams, hic R1, hic R2, ONT.
 IFS=$'\t' read -r SAMPLE SPECIES _HIFI_BAMS HIC_R1 HIC_R2 _ONT_UL <<< "$LINE"
+SPECIES="${SPECIES//[[:space:]]/}"   # manifest species may carry stray spaces ("LEPC ")
 if [[ -z "${SAMPLE:-}" || -z "${SPECIES:-}" ]]; then
     echo "ERROR: Malformed manifest row at index ${SLURM_ARRAY_TASK_ID}: ${LINE}"
     exit 1

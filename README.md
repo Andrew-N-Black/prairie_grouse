@@ -194,12 +194,9 @@ step that loops over samples reads this file and indexes it by
 `SLURM_ARRAY_TASK_ID`, so the row order defines the array indices — don't
 reorder it between steps.
 
-> **Note:** the seven LEPC rows currently carry a **trailing space** in the
-> `species` field (`"LEPC "`). Output filenames are built from that field
-> verbatim, so those assemblies are named `LEPC _F5540_hap1...` with the space.
-> It is self-consistent — every step reads the same manifest — but worth
-> cleaning up, and it must be fixed in the pangenome repo's copy at the same
-> time, since that repo builds the same paths.
+> **Note:** species names are whitespace-trimmed when read (scripts 02, 05, 07, 11),
+> because the LEPC rows once carried a trailing space (`"LEPC "`) that produced
+> filenames such as `LEPC _F5545_hap1`. The manifest is now clean as well.
 
 ---
 

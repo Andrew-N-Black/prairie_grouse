@@ -228,6 +228,7 @@ if [[ -z "$LINE" ]]; then
 fi
 
 IFS=$'\t' read -r SAMPLE SPECIES HIFI_BAMS HIC_R1 HIC_R2 ONT_UL <<< "$LINE"
+SPECIES="${SPECIES//[[:space:]]/}"   # manifest species may carry stray spaces ("LEPC ")
 ONT_UL="${ONT_UL:-NA}"
 ONT_UL="${ONT_UL%$'\r'}"   # tolerate Windows line endings in the manifest
 
