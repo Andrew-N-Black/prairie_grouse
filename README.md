@@ -70,8 +70,8 @@ proposed join against the grouse Hi-C data (step 11):
 
 Ptarmigan is also simply the closer relative — *Lagopus* and *Tympanuchus* are
 both Tetraoninae, *Gallus* is Phasianinae — which shows up directly in
-annotation transfer: **22,010 unmapped Liftoff features against ptarmigan
-versus 95,451 against chicken**, a 4.3× reduction.
+annotation transfer: **a mean of 477 unmapped Liftoff features per haplotype against
+ptarmigan (about 21,900 in total) versus 95,451 against chicken**, a 4.3× reduction.
 
 ### What chromosome numbers mean here
 
@@ -226,9 +226,9 @@ three independent ways, and step 05's depth check corroborates it from the reads
 
 **One join is still unresolved.** The junction inside `chr_2` (the chicken
 chromosome 3 homolog), splitting it into ~7.4 Mb and ~102.6 Mb pieces, is
-*unsupported* by Hi-C in 15 of the 46 assemblies — across all three species and
+*unsupported* by Hi-C in 17 of the 46 assemblies — across all three species and
 against both references — while ptarmigan itself carries the chromosome intact.
-Against a measured false-positive rate of 0.88%, seeing it 15 times is not
-chance (P ≈ 1.5 × 10⁻³¹). It is flagged rather than resolved: it may be a real
+Against a measured false-positive rate of 0.88%, seeing it 17 times is not
+chance (binomial P(≥17 of 46 | p = 0.0088) ≈ 1.6 × 10⁻²³). It is flagged rather than resolved: it may be a real
 polymorphism in these species, or a shared assembly artifact, and distinguishing
 those needs evidence this pipeline does not produce.
