@@ -49,7 +49,7 @@ qc)
   OUT="${MITO_DIR}/mito_qc.tsv"
   printf "sample\tlength_bp\tref_len_bp\tlen_vs_ref\tcircular\tCDS\trRNA\ttRNA\tfirst_feature\tpct_id_ref\tref_cov\tdepth_min\tdepth_med\tPASS\n" > "$OUT"
   for D in "$MITO_DIR"/*_F*/; do
-    S=$(basename "$D"); [[ "$S" == *.failed ]] && continue
+    S=$(basename "$D"); [[ "$S" == *.* ]] && continue   # skip *.failed* attempts
     F="${D}final_mitogenome.fasta"; GB="${D}final_mitogenome.gb"
     [[ -s "$F" ]] || { printf "%s\tMISSING\n" "$S" >> "$OUT"; continue; }
     L=$(seqlen "$F")
@@ -85,7 +85,8 @@ qc)
   # all-vs-all identity matrix (long format)
   ALL="${MITO_DIR}/_all_for_pairwise.fa"; > "$ALL"
   for F in "$MITO_DIR"/*_F[0-9]*[0-9]/final_mitogenome.fasta; do
-    S=$(basename "$(dirname "$F")"); echo ">$S" >> "$ALL"; grep -v '>' "$F" >> "$ALL"
+    S=$(basename "$(dirname "$F")"); [[ "$S" == *.* ]] && continue
+    echo ">$S" >> "$ALL"; grep -v '>' "$F" >> "$ALL"
   done
   cx minimap2 -x asm10 -c -X "$ALL" "$ALL" 2>/dev/null \
     | awk 'BEGIN{OFS="\t"; print "a","b","pct_identity","aligned_bp"} {print $1,$6,sprintf("%.2f",100*$10/$11),$11}' \
