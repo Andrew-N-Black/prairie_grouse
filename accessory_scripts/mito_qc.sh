@@ -19,7 +19,8 @@
 #   first_feature                        expect trnF (tRNA-Phe): standard rotation
 #   pct_id_ref, ref_cov                  identity to the reference and the fraction
 #                                        of it covered (expect cov >= 0.98)
-#   depth_min / depth_med                HiFi read depth, excluding 500 bp at each end
+#   depth_min / depth_med, depth_reads   read depth (HiFi, or Hi-C for the Hi-C consensus
+#                                        birds), excluding 500 bp at each end
 #                                        (reads cannot cross the start/end of a
 #                                        linearised circle, so the ends always dip); a
 #                                        window at 0 means a misassembly or a
@@ -47,7 +48,7 @@ case "${1:-qc}" in
 # ------------------------------------------------------------------------------
 qc)
   OUT="${MITO_DIR}/mito_qc.tsv"
-  printf "sample\tlength_bp\tref_len_bp\tlen_vs_ref\tcircular\tCDS\trRNA\ttRNA\tfirst_feature\tpct_id_ref\tref_cov\tdepth_min\tdepth_med\tPASS\n" > "$OUT"
+  printf "sample\tlength_bp\tref_len_bp\tlen_vs_ref\tcircular\tCDS\trRNA\ttRNA\tfirst_feature\tpct_id_ref\tref_cov\tdepth_min\tdepth_med\tdepth_reads\tPASS\n" > "$OUT"
   for D in "$MITO_DIR"/*_F*/; do
     S=$(basename "$D"); [[ "$S" == *.* ]] && continue   # skip *.failed* attempts
     F="${D}final_mitogenome.fasta"; GB="${D}final_mitogenome.gb"
@@ -68,8 +69,14 @@ qc)
     read -r PID COV < <(cx minimap2 -x asm10 -c --secondary=no "${REF_DIR}/ref.fasta" "$F" 2>/dev/null \
         | awk -v rl="$REF_LEN" '{m+=$10; a+=$11; c+=$9-$8} END{if(a) printf "%.2f %.3f\n", 100*m/a, c/rl; else print "NA NA"}')
     # read depth along the assembly (the pre-filtered mito reads)
-    READS="${D}mito_candidate_reads.fa"; DMIN=NA; DMED=NA
-    if [[ -s "$READS" ]]; then
+    READS="${D}mito_candidate_reads.fa"; DMIN=NA; DMED=NA; DSRC=NA
+    if [[ -f "${D}HIC_CONSENSUS" && -s "${D}hic/depth.txt" ]]; then
+      # Hi-C consensus birds: depth of the Hi-C reads (saved by mito_from_hic.sh)
+      DSRC=HiC
+      read -r DMIN DMED < <(awk '{d[++n]=$3} END{L=n; m=0; for(i=1;i<=n;i++) if(i>500 && i<=L-500) e[++m]=d[i];
+                                  if(!m){print "NA NA"; exit} asort(e); printf "%d %d\n", e[1], e[int((m+1)/2)]}' "${D}hic/depth.txt")
+    elif [[ -s "$READS" ]]; then
+      DSRC=HiFi
       read -r DMIN DMED < <(cx bash -c "minimap2 -t 4 -ax map-hifi --secondary=no '$F' '$READS' 2>/dev/null \
           | samtools sort -o - 2>/dev/null | samtools depth -a - " \
           | awk -v L="$L" '$2>500 && $2<=L-500 {d[++n]=$3} END{if(!n){print "NA NA"; exit} asort(d); printf "%d %d\n", d[1], d[int((n+1)/2)]}')
@@ -77,8 +84,8 @@ qc)
     PASS=$(awk -v r="$RATIO" -v c="$CDS" -v rr="$RRNA" -v t="$TRNA" -v cov="$COV" -v dm="$DMIN" -v f="$FIRST" \
       'BEGIN{ok = (r>0.97 && r<1.05 && c==13 && rr==2 && t==22 && cov>=0.98 && (dm=="NA" || dm>=1));
              print (ok ? "PASS" : "CHECK")}')
-    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
-      "$S" "$L" "$REF_LEN" "$RATIO" "$CIRC" "$CDS" "$RRNA" "$TRNA" "$FIRST" "$PID" "$COV" "$DMIN" "$DMED" "$PASS" >> "$OUT"
+    printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+      "$S" "$L" "$REF_LEN" "$RATIO" "$CIRC" "$CDS" "$RRNA" "$TRNA" "$FIRST" "$PID" "$COV" "$DMIN" "$DMED" "$DSRC" "$PASS" >> "$OUT"
   done
   column -t -s$'\t' "$OUT" 2>/dev/null || cat "$OUT"
 
