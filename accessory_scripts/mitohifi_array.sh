@@ -62,7 +62,7 @@ REF_SPECIES_FALLBACK="Lagopus muta"
 # Reads longer than this multiple of the reference length are dropped
 # (anti-NUMT filter). 1.0 is MitoHiFi's default; relax to 1.5 only if too few
 # reads remain for an assembly.
-MAX_READ_LEN=1.0
+MAX_READ_LEN="${MAX_READ_LEN:-1.0}"
 
 APPTAINER_BIN="$(command -v apptainer || command -v singularity)"
 cx() { "$APPTAINER_BIN" exec --cleanenv --bind "${CLUSTER_SCRATCH}" "$SIF" "$@"; }
@@ -114,7 +114,7 @@ IFS=$'\t' read -r SAMPLE SPECIES _ <<< "$LINE"
 SPECIES="${SPECIES//[[:space:]]/}"
 OUT="${MITO_DIR}/${SPECIES}_${SAMPLE}"
 mkdir -p "$OUT"; cd "$OUT"
-echo ">>> ${SPECIES} ${SAMPLE} -> ${OUT}  (${THREADS} threads)"
+echo ">>> ${SPECIES} ${SAMPLE} -> ${OUT}  (${THREADS} threads, max-read-len ${MAX_READ_LEN}x)"
 
 if [[ -s final_mitogenome.fasta ]]; then echo "already done — skipping"; exit 0; fi
 

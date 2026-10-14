@@ -49,7 +49,8 @@ qc)
   OUT="${MITO_DIR}/mito_qc.tsv"
   printf "sample\tlength_bp\tref_len_bp\tlen_vs_ref\tcircular\tCDS\trRNA\ttRNA\tfirst_feature\tpct_id_ref\tref_cov\tdepth_min\tdepth_med\tPASS\n" > "$OUT"
   for D in "$MITO_DIR"/*_F*/; do
-    S=$(basename "$D"); F="${D}final_mitogenome.fasta"; GB="${D}final_mitogenome.gb"
+    S=$(basename "$D"); [[ "$S" == *.failed ]] && continue
+    F="${D}final_mitogenome.fasta"; GB="${D}final_mitogenome.gb"
     [[ -s "$F" ]] || { printf "%s\tMISSING\n" "$S" >> "$OUT"; continue; }
     L=$(seqlen "$F")
     RATIO=$(awk -v a="$L" -v b="$REF_LEN" 'BEGIN{printf "%.3f", a/b}')
@@ -83,7 +84,7 @@ qc)
 
   # all-vs-all identity matrix (long format)
   ALL="${MITO_DIR}/_all_for_pairwise.fa"; > "$ALL"
-  for F in "$MITO_DIR"/*_F*/final_mitogenome.fasta; do
+  for F in "$MITO_DIR"/*_F[0-9]*[0-9]/final_mitogenome.fasta; do
     S=$(basename "$(dirname "$F")"); echo ">$S" >> "$ALL"; grep -v '>' "$F" >> "$ALL"
   done
   cx minimap2 -x asm10 -c -X "$ALL" "$ALL" 2>/dev/null \
