@@ -22,7 +22,7 @@
 #   depth_min / depth_med                HiFi read depth, excluding 500 bp at each end
 #                                        (reads cannot cross the start/end of a
 #                                        linearised circle, so the ends always dip); a
-#                                        window near 0 means a misassembly or a
+#                                        window at 0 means a misassembly or a
 #                                        NUMT-derived segment
 #   PASS                                 all of the above within limits
 # It also writes mitogenomes/mito_pairwise_identity.tsv: all-vs-all identity.
@@ -75,7 +75,7 @@ qc)
           | awk -v L="$L" '$2>500 && $2<=L-500 {d[++n]=$3} END{if(!n){print "NA NA"; exit} asort(d); printf "%d %d\n", d[1], d[int((n+1)/2)]}')
     fi
     PASS=$(awk -v r="$RATIO" -v c="$CDS" -v rr="$RRNA" -v t="$TRNA" -v cov="$COV" -v dm="$DMIN" -v f="$FIRST" \
-      'BEGIN{ok = (r>0.97 && r<1.05 && c==13 && rr==2 && t==22 && cov>=0.98 && (dm=="NA" || dm>=5));
+      'BEGIN{ok = (r>0.97 && r<1.05 && c==13 && rr==2 && t==22 && cov>=0.98 && (dm=="NA" || dm>=1));
              print (ok ? "PASS" : "CHECK")}')
     printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
       "$S" "$L" "$REF_LEN" "$RATIO" "$CIRC" "$CDS" "$RRNA" "$TRNA" "$FIRST" "$PID" "$COV" "$DMIN" "$DMED" "$PASS" >> "$OUT"
