@@ -604,6 +604,12 @@ for HAP in hap1 hap2; do
         if [[ -s "$LIFTOFF_GFF" && "$LIFTOFF_GFF" -nt "$FINAL_FASTA" ]]; then
             echo "  already exists and is current — skipping"
         else
+            # Liftoff reuses alignments it finds in -dir (and a target .mmi cached
+            # by path), so a FASTA renamed or edited after an earlier run (step 06
+            # renaming, 05b W relabel, misjoin fix) gets features placed on
+            # sequence names that no longer exist -> pyfaidx KeyError in polish.
+            # Always start Liftoff clean.
+            rm -rf "$LIFTOFF_INTERMEDIATE" "${FINAL_FASTA}.mmi"
             mkdir -p "$LIFTOFF_INTERMEDIATE"
             liftoff \
                 -g "$REF_GFF" \
