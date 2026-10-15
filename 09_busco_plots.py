@@ -272,9 +272,12 @@ def natural_chr_key(name):
     makes two karyotype plots impossible to read side by side — the whole
     point of drawing them.
     """
-    m = re.fullmatch(r"chr_(\d+)((?:_\d+)*)([a-z]*)", name)
+    # chr_24_p1: a piece of chr_24 split off by the misjoin fix
+    # (grouse_pangenome/scripts/chrom_qc/fix_misjoins.py); drawn right after chr_24.
+    m = re.fullmatch(r"chr_(\d+)((?:_\d+)*)([a-z]*)(?:_p(\d+))?", name)
     if m:
-        return (0, int(m.group(1)), m.group(2) + m.group(3))
+        piece = f"~p{int(m.group(4)):03d}" if m.group(4) else ""
+        return (0, int(m.group(1)), m.group(2) + m.group(3) + piece)
     if name.startswith("chr_"):
         return (1, CHR_TAIL_ORDER.get(name, 3), name)
     return (2, 0, name)
