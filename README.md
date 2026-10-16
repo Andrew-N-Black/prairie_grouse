@@ -36,6 +36,9 @@ account: `dewoody` (Gautschi; `fnrdewoody` is the Negishi account). Sequence dat
 | Table S3 (sex from Z/W content; with CHD1 PCR, Figure S7) | step 10 |
 | Table S4 (assembly chromosome names vs chicken GRCg7b karyotype) | steps 01 + 04 |
 | Unsupported RagTag joins (chr_2) | step 11 |
+| Mitogenomes and their QC (Appendix S1) | steps 12, 12b, 12c |
+| Figure 16 (mitogenome tree) | steps 12d, 12e |
+| Table 3, Figure 17 (genome-wide window phylogenies) | step 13 (+ 13b statistics, 13c/13d window recovery); runs on Negishi |
 
 The superseded **chicken-guided** version of this pipeline is archived,
 unchanged, in [`chicken_reference_chain/`](chicken_reference_chain) for
@@ -90,8 +93,10 @@ chromosome number by assuming the numbers match.
 
 ## Pipeline
 
-Run in order. Steps 01 and 03 are one-off setup; 02, 05, 07 and 11 are array
-jobs over the 23 samples; the rest are single jobs.
+Run in order. Steps 01 and 03 are one-off setup; 02, 05, 07, 11 and 12 are array
+jobs over the 23 samples; the rest are single jobs. Steps 12-13 use the finished
+assemblies: 12 builds the mitogenomes and their tree, 13 builds nuclear window
+phylogenies for Tree House Explorer (THEx) and runs on **Negishi**.
 
 | Step | Script | What it does | Shape |
 |---|---|---|---|
@@ -107,6 +112,15 @@ jobs over the 23 samples; the rest are single jobs.
 | 09 | [`09_busco_plots.sh`](09_busco_plots.sh) + [`.py`](09_busco_plots.py) | BUSCO-Plot-Py figures: per-species completeness barplots, karyoplots, and pairwise horizontal synteny plots. | single, 8 cpu, 4 h |
 | 10 | [`10_sex_chromosome_check.sh`](10_sex_chromosome_check.sh) + [`.py`](10_sex_chromosome_check.py) | Tests whether the short, low-BUSCO haplotypes are short because they lack the Z. Three independent checks: chromosome content, BUSCOs on chr_Z, and where the *missing* orthologs sit on the reference. | single, 30 min |
 | 11 | [`11_join_support.sh`](11_join_support.sh) + [`.py`](11_join_support.py) | Scores **every join RagTag made** against the Hi-C: observed cross-join contacts versus what contiguous sequence would carry at the same separation, calibrated per library on pseudo-joins inside intact scaffolds. This is what catches a reference imposing a join the data does not support. | array ×23, 8 cpu, 8 h |
+| 12 | [`12_mitohifi_array.sh`](12_mitohifi_array.sh) | One circularised, rotated, annotated mitogenome per bird from the HiFi reads (MitoHiFi v3, NUMT-bearing long reads filtered out), replacing the 20-50 kb hifiasm chr_MT concatemers. `setup` fetches the reference mitogenome. | array ×23, 32 cpu, 1 d |
+| 12b | [`12b_mito_from_hic.sh`](12b_mito_from_hic.sh) | Mitogenome as a Hi-C read consensus for birds whose HiFi reads are dominated by NUMTs (STGR F5485, F5502). | array (2 rows), 16 cpu, 4 h |
+| 12c | [`12c_mito_qc.sh`](12c_mito_qc.sh) | QC table (length, gene content, rotation, identity/coverage vs reference, read depth), `trim`/`rescue` fixes, pairwise identities, and `collect` of the PASS mitogenomes. | login node |
+| 12d | [`12d_mito_tree.sh`](12d_mito_tree.sh) | MAFFT FFT-NS-i alignment of the 23 mitogenomes + GRPC reference + rock ptarmigan outgroup, IQ-TREE 3 (ModelFinder, 1,000 UFBoot), rooted on ptarmigan. | login node / short job |
+| 12e | [`12e_plot_mito_tree_ggtree.R`](12e_plot_mito_tree_ggtree.R) | Figure 16 from the 12d tree (ggtree). | local R |
+| 13 | [`13_thex_phylogeny.sh`](13_thex_phylogeny.sh) + [`.py`](13_thex_phylogeny.py) | **Negishi.** Copies the assemblies from Gautschi, projects every haplotype onto the ptarmigan reference (minimap2), builds one alignment per chromosome, then THExBuilder 100-kb windows → trimAl → pairwise filter → IQ-TREE 2 per window, and writes the THEx Tree Viewer file (trees rooted on ptarmigan; `TopologyID` = species-level relationship), gene track and chromosome-length BED. | array → node → array → small job |
+| 13b | [`13b_thex_stats.py`](13b_thex_stats.py) | Statistics for Table 3 / Figure 17 with chromosomes as the unit of replication: Z vs autosome rank, Spearman vs chromosome length and gene density, window-level logistic GEE clustered by chromosome. | local, THEx env |
+| 13c | [`13c_window_diagnostics.py`](13c_window_diagnostics.py) | Why a region has no trees: per-window reference N/repeat/GC, haplotype coverage, genes and filter fate. | login node |
+| 13d | [`13d_thex_rescue.sh`](13d_thex_rescue.sh) + [`.py`](13d_thex_rescue.py) | Re-runs windows lost because one to four haplotypes lack that stretch, without those haplotypes, then reruns step 13's IQ-TREE and summary stages. | node → array → small job |
 
 ### Submitting
 
@@ -127,6 +141,20 @@ sbatch 08_ptarmigan_reference_busco.sh
 sbatch 09_busco_plots.sh                       # after 07 and 08
 sbatch 10_sex_chromosome_check.sh              # after 07 and 08
 sbatch --array=0-$((N-1))%8 11_join_support.sh  # needs 05 with DO_HIC=true
+
+# mitogenomes (Gautschi)
+bash   12_mitohifi_array.sh setup               # once, login node
+sbatch --array=0-$((N-1))%8 12_mitohifi_array.sh
+sbatch -q standby -t 04:00:00 --array=7,8 12b_mito_from_hic.sh   # STGR F5485, F5502
+bash   12c_mito_qc.sh qc && bash 12c_mito_qc.sh collect
+bash   12d_mito_tree.sh                           # then 12e locally for Figure 16
+
+# window phylogenies (Negishi, from a clone of this repo)
+bash 13_thex_phylogeny.sh transfer               # assemblies + ptarmigan from Gautschi
+bash 13_thex_phylogeny.sh setup                  # THEx conda env on scratch
+bash 13_thex_phylogeny.sh submit                 # project -> prep -> iqtree -> summarize
+bash 13d_thex_rescue.sh submit                   # optional: recover windows missing 1-4 haplotypes
+python 13b_thex_stats.py grouse_TreeViewer_input.xlsx chromosome_lengths.bed grouse_thex_stats
 ```
 
 Steps 01, 03 and 04 are independent of 02 and can run while the assemblies are
@@ -172,6 +200,19 @@ qc_ptarmigan/busco/           BUSCO runs, 46 assemblies + reference    (07, 08)
 qc_ptarmigan/plots/           barplots, karyoplots, synteny            (09)
 qc_ptarmigan/sex_chromosome_check/                                     (10)
 qc_ptarmigan/join_support/    per-join Hi-C support scores             (11)
+mitogenomes/<SPECIES>_<SAMPLE>/ final_mitogenome.{fasta,gb,gff}        (12, 12b)
+mitogenomes/mito_qc.tsv, mitogenomes_pass.fasta                        (12c)
+mitogenomes/tree/             alignment and IQ-TREE output             (12d)
+```
+
+Step 13 runs on Negishi under `$CLUSTER_SCRATCH/GROUSE/grouse_thex`:
+
+```
+inputs/                       copies of final_ptarmigan/ and the ptarmigan reference
+work/projected/, work/msa/    haplotypes projected onto ptarmigan; one alignment per chromosome
+work/thexb/                   THExBuilder windows, trimAl and pairwise-filter output
+work/iqtree/<chrom>/          one IQ-TREE run per window (.contree used)
+work/thex_inputs/             Tree Viewer .xlsx, chromosome BED, gene GFF, summary tables
 ```
 
 The deliverable assemblies are
@@ -209,6 +250,24 @@ needed. It also holds `plot_assembly_contiguity.R`, which draws report
 Figure S5 from the final QUAST values (run locally).
 
 ---
+
+## Window phylogenies (step 13): design notes
+
+Step 13 moved here from the `grouse_pangenome` repo (it was that repo's step 05) because
+it uses only the finished assemblies. The full rationale is in the header of
+`13_thex_phylogeny.sh`; in short:
+
+- **Reference = rock ptarmigan**, renamed to the grouse `chr_N` names. It is also the
+  outgroup, so it adds no species bias, and no grouse assembly's misjoins enter the
+  coordinates. Chromosomes that fewer than half the haplotypes cover (microchromosomes
+  30-33, 35, 36, 38) are dropped; W and MT are excluded.
+- **THExBuilder 1.0.4 pairwise-filter bug**: it computes a mismatch *count*, not a
+  proportion, so its default cutoff masks any mismatch. The script detects this and
+  passes 0.15 × sub-window length (15 per 100 bp), and exempts the outgroup.
+- **TopologyID** is the species-level relationship, not THEx's topobinner (with 47 tips
+  nearly every window is a unique topology).
+- Install THEx from GitHub with `pip --no-deps` into a pinned env (`setup`); the
+  `ajharris_2374` conda package no longer solves.
 
 ## Notes on interpreting the QC
 

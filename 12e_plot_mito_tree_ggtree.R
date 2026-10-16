@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# plot_mito_tree_ggtree.R — consensus mitogenome tree (IQ-TREE 3, UFBoot) with ggtree
+# 12e_plot_mito_tree_ggtree.R — consensus mitogenome tree (IQ-TREE 3, UFBoot) with ggtree
 #
 # Input : mito_tree_rooted.contree  (or mito_tree.contree; the script roots it)
 # Output: mito_tree_ggtree.pdf / .png
@@ -9,7 +9,7 @@
 #   install.packages(c("BiocManager", "ape", "ggplot2"))
 #   BiocManager::install(c("ggtree", "treeio"))
 #
-# Run:  Rscript plot_mito_tree_ggtree.R mito_tree_rooted.contree
+# Run:  Rscript 12e_plot_mito_tree_ggtree.R mito_tree_rooted.contree
 # =============================================================================
 suppressPackageStartupMessages({
   library(ape)

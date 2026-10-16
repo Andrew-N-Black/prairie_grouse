@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# accessory_scripts/mitohifi_array.sh
+# 12_mitohifi_array.sh
 # One complete, circularised, rotated and annotated mitogenome per individual,
 # assembled from the HiFi reads with MitoHiFi v3, replacing the hifiasm chr_MT.
 #
@@ -22,14 +22,14 @@
 #     vertebrate mitochondrial code 2).
 #
 # ONE-TIME SETUP (login node), from the prairie_grouse repo root:
-#   bash accessory_scripts/mitohifi_array.sh setup
+#   bash 12_mitohifi_array.sh setup
 #
 # RUN (array over manifest rows; 23 birds):
 #   N=$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)
-#   sbatch --array=0-$((N-1))%8 accessory_scripts/mitohifi_array.sh
+#   sbatch --array=0-$((N-1))%8 12_mitohifi_array.sh
 #
 # SUMMARY (login node, after the array):
-#   bash accessory_scripts/mitohifi_array.sh summary
+#   bash 12_mitohifi_array.sh summary
 # =============================================================================
 #SBATCH -A dewoody
 #SBATCH -p cpu

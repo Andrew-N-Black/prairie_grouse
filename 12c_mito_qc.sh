@@ -1,14 +1,14 @@
 #!/bin/bash
 # =============================================================================
-# accessory_scripts/mito_qc.sh — QA/QC of the MitoHiFi mitogenomes
-# (run after accessory_scripts/mitohifi_array.sh). Login node is fine: the data
+# 12c_mito_qc.sh — QA/QC of the MitoHiFi mitogenomes
+# (run after 12_mitohifi_array.sh). Login node is fine: the data
 # are tiny (one ~16.7 kb sequence and a few thousand reads per bird).
 #
-#   bash accessory_scripts/mito_qc.sh qc            # table for all birds
-#   bash accessory_scripts/mito_qc.sh trim SAMPLE   # fix one over-long (multi-copy) assembly
-#   bash accessory_scripts/mito_qc.sh rescue SAMPLE # assembly is mostly non-mitochondrial: find a
+#   bash 12c_mito_qc.sh qc            # table for all birds
+#   bash 12c_mito_qc.sh trim SAMPLE   # fix one over-long (multi-copy) assembly
+#   bash 12c_mito_qc.sh rescue SAMPLE # assembly is mostly non-mitochondrial: find a
 #                                                   # full copy elsewhere and re-annotate it
-#   bash accessory_scripts/mito_qc.sh collect       # one multi-FASTA of passing birds
+#   bash 12c_mito_qc.sh collect       # one multi-FASTA of passing birds
 #
 # qc writes mitogenomes/mito_qc.tsv, one row per bird:
 #   length_bp, ref_len_bp, len_vs_ref    should be ~1.00 (control-region indels
@@ -71,7 +71,7 @@ qc)
     # read depth along the assembly (the pre-filtered mito reads)
     READS="${D}mito_candidate_reads.fa"; DMIN=NA; DMED=NA; DSRC=NA
     if [[ -f "${D}HIC_CONSENSUS" && -s "${D}hic/depth.txt" ]]; then
-      # Hi-C consensus birds: depth of the Hi-C reads (saved by mito_from_hic.sh)
+      # Hi-C consensus birds: depth of the Hi-C reads (saved by 12b_mito_from_hic.sh)
       DSRC=HiC
       read -r DMIN DMED < <(awk '{d[++n]=$3} END{L=n; m=0; for(i=1;i<=n;i++) if(i>500 && i<=L-500) e[++m]=d[i];
                                   if(!m){print "NA NA"; exit} asort(e); printf "%d %d\n", e[1], e[int((m+1)/2)]}' "${D}hic/depth.txt")
@@ -161,7 +161,7 @@ rescue)
     echo ">>> no sequence carries a full mitochondrial copy."
     echo "    Rerun the read-based assembly with a relaxed read-length filter, e.g.:"
     echo "      mv ${D} ${D}.failed"
-    echo "      sbatch -q standby -t 04:00:00 --array=<ROW> --export=ALL,MAX_READ_LEN=2.0 accessory_scripts/mitohifi_array.sh"
+    echo "      sbatch -q standby -t 04:00:00 --array=<ROW> --export=ALL,MAX_READ_LEN=2.0 12_mitohifi_array.sh"
     exit 1
   fi
   read -r CTG TS TE STRAND PID <<< "$HIT"

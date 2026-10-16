@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# accessory_scripts/mito_from_hic.sh — mitogenome from the Hi-C (Illumina) reads,
+# 12b_mito_from_hic.sh — mitogenome from the Hi-C (Illumina) reads,
 # for birds where MitoHiFi cannot assemble one from HiFi (STGR F5485, F5502).
 #
 # WHY: in these two birds the HiFi reads that match the mitogenome appear to be
@@ -19,11 +19,11 @@
 # "Hi-C read consensus" in the methods; the other 21 are de novo HiFi assemblies.
 #
 # RUN (rows of assembly_manifest.tsv; F5485 = 7, F5502 = 8):
-#   sbatch -q standby -t 04:00:00 --array=7,8 accessory_scripts/mito_from_hic.sh
+#   sbatch -q standby -t 04:00:00 --array=7,8 12b_mito_from_hic.sh
 # VALIDATE the method on a bird whose HiFi mitogenome passed (F5457 = row 0), using
 # a different guide; the result goes to STGR_F5457.hic_test and is compared afterwards:
-#   sbatch -q standby -t 04:00:00 --array=0 --export=ALL,OUT_SUFFIX=.hic_test,GUIDE=$ASM/mitogenomes/STGR_F5462/final_mitogenome.fasta accessory_scripts/mito_from_hic.sh
-# Then: bash accessory_scripts/mito_qc.sh qc
+#   sbatch -q standby -t 04:00:00 --array=0 --export=ALL,OUT_SUFFIX=.hic_test,GUIDE=$ASM/mitogenomes/STGR_F5462/final_mitogenome.fasta 12b_mito_from_hic.sh
+# Then: bash 12c_mito_qc.sh qc
 # =============================================================================
 #SBATCH -A dewoody
 #SBATCH -p cpu
