@@ -39,6 +39,7 @@ account: `dewoody` (Gautschi; `fnrdewoody` is the Negishi account). Sequence dat
 | Mitogenomes and their QC (Appendix S1) | steps 12, 12b, 12c |
 | Figure 16 (mitogenome tree) | steps 12d, 12e |
 | Table 3, Figure 17 (genome-wide window phylogenies) | step 13 (+ 13b statistics, 13c/13d window recovery); runs on Negishi |
+| Figure 18 (autosomal, Z and mitogenome summary trees) | steps 13e (Negishi), 13f (local R) |
 
 The superseded **chicken-guided** version of this pipeline is archived,
 unchanged, in [`chicken_reference_chain/`](chicken_reference_chain) for
@@ -121,6 +122,8 @@ phylogenies for Tree House Explorer (THEx) and runs on **Negishi**.
 | 13b | [`13b_thex_stats.py`](13b_thex_stats.py) | Statistics for Table 3 / Figure 17 with chromosomes as the unit of replication: Z vs autosome rank, Spearman vs chromosome length and gene density, window-level logistic GEE clustered by chromosome. | local, THEx env |
 | 13c | [`13c_window_diagnostics.py`](13c_window_diagnostics.py) | Why a region has no trees: per-window reference N/repeat/GC, haplotype coverage, genes and filter fate. | login node |
 | 13d | [`13d_thex_rescue.sh`](13d_thex_rescue.sh) + [`.py`](13d_thex_rescue.py) | Re-runs windows lost because one to four haplotypes lack that stretch, without those haplotypes, then reruns step 13's IQ-TREE and summary stages. | node → array → small job |
+| 13e | [`13e_summary_trees.sh`](13e_summary_trees.sh) | One summary tree for the autosomes and one for the Z from the step-13 window trees: wASTRAL (weighted by UFBoot and branch length) at haplotype and species level, plus gene concordance factors (IQ-TREE `--gcf`, % of window trees containing each branch). | `setup` once, then one standby job |
+| 13f | [`13f_plot_summary_trees.R`](13f_plot_summary_trees.R) | Figure 18: autosomal and Z summary trees (gCF on nodes) beside the 12d mitogenome tree (ggtree + patchwork). | local R |
 
 ### Submitting
 
@@ -154,6 +157,8 @@ bash 13_thex_phylogeny.sh transfer               # assemblies + ptarmigan from G
 bash 13_thex_phylogeny.sh setup                  # THEx conda env on scratch
 bash 13_thex_phylogeny.sh submit                 # project -> prep -> iqtree -> summarize
 bash 13d_thex_rescue.sh submit                   # optional: recover windows missing 1-4 haplotypes
+bash 13e_summary_trees.sh setup && bash 13e_summary_trees.sh submit   # autosome + Z summary trees
+Rscript 13f_plot_summary_trees.R autosomes.gcf.cf.tree chrZ.gcf.cf.tree mito_tree.contree   # local, Figure 18
 python 13b_thex_stats.py grouse_TreeViewer_input.xlsx chromosome_lengths.bed grouse_thex_stats
 ```
 
