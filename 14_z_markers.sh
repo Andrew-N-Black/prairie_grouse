@@ -200,8 +200,8 @@ stage_select() {
     angsd sites index "${PANEL}/sites.txt" > "${PANEL}/sites.index.log" 2>&1 \
         || { cat "${PANEL}/sites.index.log"; die "angsd sites index failed"; }
     awk '{print $1":"$2"-"$2}' "${PANEL}/sites.txt" > "${PANEL}/sites.regions"
-    if [[ ! -s "${LEPC_REF}.fai" || "${LEPC_REF}.fai" -ot "$LEPC_REF" ]]; then
-        log "re-indexing $LEPC_REF (the .fai was older than the FASTA; ANGSD refuses it)"
+    if [[ ! -s "${LEPC_REF}.fai" || ! "${LEPC_REF}.fai" -nt "$LEPC_REF" ]]; then
+        log "re-indexing $LEPC_REF (ANGSD refuses a .fai that is not strictly newer than the FASTA)"
         samtools faidx "$LEPC_REF"
     fi
 }
