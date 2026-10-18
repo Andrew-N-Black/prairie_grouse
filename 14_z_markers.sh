@@ -21,6 +21,7 @@
 #   bash 14_z_markers.sh status
 #   bash 14_z_markers.sh select        # re-pick the panel SNPs (MIN_CLEAN, BIN, MAX_MASKED) on the login node
 #   bash 14_z_markers.sh submit-panel  # rerun only the ANGSD panel check + summary
+#   bash 14_z_markers.sh submit-zbam   # cut Z-only BAMs from the CRAMs first (ANGSD CRAM decode errors), then panel + summary
 #
 # Output: ${OUT_DIR}/z_markers.final.tsv, one row per candidate: alleles per species in the
 #   assemblies, haplotypes called, flank cleanliness, genome copies, W hits, repeat fraction,
@@ -212,9 +213,10 @@ stage_select() {
 # ----------------------------------------------------------------------------- panel (array over groups)
 stage_panel() {
     use_env; find_ref
-    local lists=("${PANEL}"/bamlists/*.list) l g n
+    local ldir="${PANEL}/bamlists"; [[ -d "${PANEL}/bamlists_z" ]] && ldir="${PANEL}/bamlists_z"
+    local lists=("${ldir}"/*.list) l g n
     l="${lists[${SLURM_ARRAY_TASK_ID:?array job}]}"; g="$(basename "$l" .list)"; n=$(wc -l < "$l")
-    log "$g: $n birds"
+    log "$g: $n birds (lists: $(basename "$ldir"))"
     [[ -s "${PANEL}/${g}.mafs.gz" ]] && { log "$g done"; return 0; }
     angsd -b "$l" -ref "$LEPC_REF" -sites "${PANEL}/sites.txt" -rf "${PANEL_RF:-${PANEL}/sites.regions}" \
         -GL 2 -doMajorMinor 3 -doMaf 1 -doCounts 1 \
@@ -252,6 +254,44 @@ stage_submit() {
     echo "  sbatch -A $ACCOUNT -p $PARTITION -q $QOS -t $WALL --export=ALL --array=0-$((NG-1)) -c 16 --mem=32G -o logs/%x_%A_%a.out -J zm_panel $SCRIPT panel"
 }
 
+# ----------------------------------------------------------------------------- zbam (array over groups)
+# ANGSD 0.940's CRAM reader fails ("Failure to decode slice", thousands of times) on the LEPC and
+# GRPC CRAMs, silently dropping reads, although samtools reads them cleanly. So samtools cuts each
+# bird's Z scaffolds into a small indexed BAM (~30 MB at 4.7x) and ANGSD reads those instead.
+stage_zbam() {
+    use_env; find_ref
+    local lists=("${PANEL}"/bamlists/*.list) l g
+    l="${lists[${SLURM_ARRAY_TASK_ID:?array job}]}"; g="$(basename "$l" .list)"
+    mkdir -p "${OUT_DIR}/zbam" "${PANEL}/bamlists_z"
+    export LEPC_REF OUT_DIR LEPC_Z
+    one() {
+        local c="$1" b; b="${OUT_DIR}/zbam/$(basename "$c" .cram).z.bam"
+        [[ -s "${b}.bai" ]] && { echo "$b"; return 0; }
+        samtools view -b -T "$LEPC_REF" -o "${b}.tmp" "$c" ${LEPC_Z//,/ } \
+            && mv "${b}.tmp" "$b" && samtools index "$b" && echo "$b" \
+            || { echo "FAILED $c" >&2; rm -f "${b}.tmp"; }
+    }
+    export -f one
+    xargs -a "$l" -P "$THREADS" -I{} bash -c 'one "$1"' _ {} > "${PANEL}/bamlists_z/${g}.list.tmp"
+    local n_in n_out; n_in=$(wc -l < "$l"); n_out=$(wc -l < "${PANEL}/bamlists_z/${g}.list.tmp")
+    [[ "$n_in" -eq "$n_out" ]] || die "$g: only $n_out of $n_in Z BAMs made"
+    sort "${PANEL}/bamlists_z/${g}.list.tmp" > "${PANEL}/bamlists_z/${g}.list" && rm "${PANEL}/bamlists_z/${g}.list.tmp"
+    log "$g: $n_out Z-only BAMs"
+}
+
+stage_submit_zbam() {
+    mkdir -p "${REPO_DIR}/logs"
+    local NG J0 J3 J4
+    NG=$(ls "${PANEL}"/bamlists/*.list | wc -l)
+    J0=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q "$QOS" -t "$WALL" --export=ALL --array=0-$((NG-1)) \
+        -c 16 --mem=16G -J zm_zbam -o "${REPO_DIR}/logs/%x_%A_%a.out" "$SCRIPT" zbam) || die "zbam refused"
+    J3=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q "$QOS" -t "$WALL" --export=ALL --dependency=afterok:"$J0" \
+        --array=0-$((NG-1)) -c 16 --mem=32G -J zm_panel -o "${REPO_DIR}/logs/%x_%A_%a.out" "$SCRIPT" panel) || die "panel refused"
+    J4=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q "$QOS" -t "$WALL" --export=ALL --dependency=afterok:"$J3" -c 2 --mem=8G \
+        -J zm_summary -o "${REPO_DIR}/logs/%x_%j.out" "$SCRIPT" summarize) || die "summary refused"
+    log "zbam $J0 -> panel $J3 -> summarize $J4  [qos $QOS, $WALL]"
+}
+
 stage_submit_panel() {
     mkdir -p "${REPO_DIR}/logs"
     [[ -s "${PANEL}/sites.txt" ]] || die "run: bash $0 select"
@@ -274,7 +314,7 @@ stage_status() {
 
 case "$MODE" in
     setup) stage_setup ;; align) stage_align ;; discover) stage_discover ;;
-    select) stage_select ;; submit-panel) stage_submit_panel ;;
+    select) stage_select ;; submit-panel) stage_submit_panel ;; zbam) stage_zbam ;; submit-zbam) stage_submit_zbam ;;
     panel) stage_panel ;; summarize) stage_summarize ;; submit) stage_submit ;; status) stage_status ;;
     *) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
