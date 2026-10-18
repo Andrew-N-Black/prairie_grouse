@@ -260,6 +260,18 @@ def cmd_primers(a):
 # ------------------------------------------------------------------------------------------ panel
 def cmd_panel(a):
     rows = list(csv.DictReader(open(a.cand), delimiter="\t"))
+    if a.sites:      # final table: the panel SNPs, plus indels that pass the same window checks
+        keep = set()
+        with open(a.sites) as fh:
+            for line in fh:
+                t = line.split()
+                keep.add((t[0], int(t[1])))
+        rows = [r for r in rows if (r["chrom"], int(r["pos"])) in keep and r["type"] == "SNP"
+                or (r["type"] == "INDEL" and r["genome_copies"] == "1" and r["W_hits"] == "0"
+                    and r["masked_frac"] != "NA" and float(r["masked_frac"]) <= a.max_masked
+                    and r.get("primer_F"))]
+        sys.stderr.write("[panel] %d panel SNPs + %d indels in the final table\n" % (
+            sum(r["type"] == "SNP" for r in rows), sum(r["type"] == "INDEL" for r in rows)))
     freq, nind, groups = defaultdict(dict), defaultdict(dict), []
     for f in sorted(glob.glob(os.path.join(a.mafs_dir, "*.mafs.gz"))):
         g = os.path.basename(f)[:-len(".mafs.gz")]
@@ -312,6 +324,49 @@ def cmd_panel(a):
                          % (p, n, a.min_daf))
 
 
+# ------------------------------------------------------------------------------------------ select
+def cmd_select(a):
+    """Pick the SNPs that go to the panel: pass the window checks, have a primer pair and clean
+    flanks, then keep the cleanest one per --bin bp for each species pair (union over pairs)."""
+    rows = list(csv.DictReader(open(a.cand), delimiter="\t"))
+    ok = []
+    drop = defaultdict(int)
+    for r in rows:
+        if r["type"] != "SNP":
+            drop["indel (assembly evidence only)"] += 1; continue
+        if r["genome_copies"] != "1":
+            drop["not single-copy in LEPC genome"] += 1; continue
+        if r["W_hits"] != "0":
+            drop["matches female W"] += 1; continue
+        if r["masked_frac"] == "NA" or float(r["masked_frac"]) > a.max_masked:
+            drop["repeat-rich window"] += 1; continue
+        if not r.get("primer_F"):
+            drop["no primer pair"] += 1; continue
+        if min(int(r["clean_left"]), int(r["clean_right"])) < a.min_clean:
+            drop["other variant within %d bp" % a.min_clean] += 1; continue
+        ok.append(r)
+    best = {}
+    for r in ok:
+        score = min(int(r["clean_left"]), int(r["clean_right"]), 1000) - 1000 * int(r["other_var_in_window"])
+        for p in r["diagnostic_pairs"].split(","):
+            k = (p, r["chrom"], int(r["pos"]) // a.bin)
+            if k not in best or score > best[k][0]:
+                best[k] = (score, r)
+    chosen = {}
+    for (p, c, b), (sc, r) in best.items():
+        chosen[r["id"]] = r
+    with open(a.out, "w") as fh:
+        for r in sorted(chosen.values(), key=lambda r: (r["chrom"], int(r["pos"]))):
+            fh.write("%s\t%s\t%s\t%s\n" % (r["chrom"], r["pos"], r["ref"], r["alt"]))
+    sys.stderr.write("[select] %d candidates; removed: %s\n" % (len(rows), "; ".join(
+        "%s %d" % kv for kv in sorted(drop.items(), key=lambda kv: -kv[1]))))
+    for p in sorted({p for r in ok for p in r["diagnostic_pairs"].split(",")}):
+        sys.stderr.write("[select] %-10s %6d pass, %5d after one per %d kb\n" % (
+            p, sum(p in r["diagnostic_pairs"].split(",") for r in ok),
+            sum(1 for k in best if k[0] == p), a.bin // 1000))
+    sys.stderr.write("[select] %d SNPs to the panel -> %s\n" % (len(chosen), a.out))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = ap.add_subparsers(dest="cmd")
@@ -330,15 +385,23 @@ def main():
     s.add_argument("--cand", required=True)
     s.add_argument("--p3out", required=True)
     s.add_argument("--out", required=True)
+    s = sp.add_parser("select")
+    s.add_argument("--cand", required=True)
+    s.add_argument("--out", required=True)
+    s.add_argument("--max-masked", type=float, default=0.2)
+    s.add_argument("--min-clean", type=int, default=20)
+    s.add_argument("--bin", type=int, default=20000)
     s = sp.add_parser("panel")
     s.add_argument("--cand", required=True)
     s.add_argument("--mafs-dir", required=True)
     s.add_argument("--out", required=True)
     s.add_argument("--min-daf", type=float, default=0.95)
+    s.add_argument("--sites", default="")
+    s.add_argument("--max-masked", type=float, default=0.2)
     a = ap.parse_args()
     if not a.cmd:
         ap.error("choose a subcommand")
-    {"discover": cmd_discover, "hits": cmd_hits, "primers": cmd_primers, "panel": cmd_panel}[a.cmd](a)
+    {"discover": cmd_discover, "hits": cmd_hits, "primers": cmd_primers, "select": cmd_select, "panel": cmd_panel}[a.cmd](a)
 
 
 if __name__ == "__main__":

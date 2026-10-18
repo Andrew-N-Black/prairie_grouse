@@ -19,6 +19,8 @@
 #   bash 14_z_markers.sh submit      # align (array) -> discover -> panel (array) -> summarize
 #                                    # all on dewoody standby (QOS=standby, 4 h); QOS=normal WALL=1-00:00:00 to change
 #   bash 14_z_markers.sh status
+#   bash 14_z_markers.sh select        # re-pick the panel SNPs (MIN_CLEAN, BIN, MAX_MASKED) on the login node
+#   bash 14_z_markers.sh submit-panel  # rerun only the ANGSD panel check + summary
 #
 # Output: ${OUT_DIR}/z_markers.final.tsv, one row per candidate: alleles per species in the
 #   assemblies, haplotypes called, flank cleanliness, genome copies, W hits, repeat fraction,
@@ -66,6 +68,8 @@ MIN_CALLED="${MIN_CALLED:-0.8}"     # fraction of a species' haplotypes that mus
 MIN_COPIES="${MIN_COPIES:-4}"       # and at least this many Z copies per species
 FLANK="${FLANK:-150}"               # window = variant +/- FLANK bp (primers are placed in it)
 MAX_MASKED="${MAX_MASKED:-0.2}"     # max soft-masked (repeat) fraction of the window
+MIN_CLEAN="${MIN_CLEAN:-20}"        # no other variable site within this many bp of the marker
+BIN="${BIN:-20000}"                 # panel: keep the cleanest marker per BIN bp per species pair
 MIN_DAF="${MIN_DAF:-0.95}"          # allele-frequency difference between allopatric groups
 MIN_IND_FRAC="${MIN_IND_FRAC:-0.5}" # ANGSD -minInd as a fraction of the group
 PRODUCT="${PRODUCT:-80-200}"        # short products for feathers / degraded field samples
@@ -181,14 +185,25 @@ EOF
     primer3_core --p3_settings_file="${DISC}/primer3.settings" < "${DISC}/primer3.in" > "${DISC}/primer3.out" 2> "${DISC}/primer3.log" || true
     python3 "$PYHELP" primers --cand "${DISC}/candidates.checked.tsv" --p3out "${DISC}/primer3.out" \
         --out "${DISC}/candidates.primers.tsv"
-    # SNPs that pass the window checks go to the panel (ANGSD: chr pos major minor, major=ref, minor=alt)
-    awk -F'\t' -v mm="$MAX_MASKED" 'NR==1{for(i=1;i<=NF;i++)c[$i]=i; next}
-        $c["type"]=="SNP" && $c["genome_copies"]==1 && $c["W_hits"]==0 && $c["masked_frac"]<=mm \
-        {print $c["chrom"]"\t"$c["pos"]"\t"$c["ref"]"\t"$c["alt"]}' "${DISC}/candidates.primers.tsv" \
-        | sort -k1,1 -k2,2n -u > "${PANEL}/sites.txt"
-    angsd sites index "${PANEL}/sites.txt" 2>/dev/null
-    awk '{print $1":"$2"-"$2}' "${PANEL}/sites.txt" > "${PANEL}/sites.regions"
+    stage_select
     log "candidates: $(($(wc -l < "${DISC}/candidates.primers.tsv") - 1)); SNPs to the panel: $(wc -l < "${PANEL}/sites.txt")"
+}
+
+# ----------------------------------------------------------------------------- select (login node, seconds)
+# SNPs for the panel: window checks passed, primer pair, clean flanks, then the cleanest one per
+# BIN bp for each species pair. ANGSD needs fresh index files for both the sites and the reference.
+stage_select() {
+    use_env; find_ref
+    python3 "$PYHELP" select --cand "${DISC}/candidates.primers.tsv" --out "${PANEL}/sites.txt" \
+        --max-masked "$MAX_MASKED" --min-clean "$MIN_CLEAN" --bin "$BIN"
+    rm -f "${PANEL}/sites.txt.bin" "${PANEL}/sites.txt.idx"
+    angsd sites index "${PANEL}/sites.txt" > "${PANEL}/sites.index.log" 2>&1 \
+        || { cat "${PANEL}/sites.index.log"; die "angsd sites index failed"; }
+    awk '{print $1":"$2"-"$2}' "${PANEL}/sites.txt" > "${PANEL}/sites.regions"
+    if [[ ! -s "${LEPC_REF}.fai" || "${LEPC_REF}.fai" -ot "$LEPC_REF" ]]; then
+        log "re-indexing $LEPC_REF (the .fai was older than the FASTA; ANGSD refuses it)"
+        samtools faidx "$LEPC_REF"
+    fi
 }
 
 # ----------------------------------------------------------------------------- panel (array over groups)
@@ -203,6 +218,7 @@ stage_panel() {
         -minMapQ 20 -minQ 20 -remove_bads 1 -uniqueOnly 1 -only_proper_pairs 1 \
         -minInd "$(awk -v n="$n" -v f="$MIN_IND_FRAC" 'BEGIN{m=int(n*f); print (m<1?1:m)}')" \
         -nThreads "$THREADS" -out "${PANEL}/${g}.tmp" 2> "${PANEL}/${g}.angsd.log"
+    [[ -s "${PANEL}/${g}.tmp.mafs.gz" ]] || { tail -20 "${PANEL}/${g}.angsd.log"; die "ANGSD wrote no output for $g"; }
     mv "${PANEL}/${g}.tmp.mafs.gz" "${PANEL}/${g}.mafs.gz"
     log "$g: $(($(zcat "${PANEL}/${g}.mafs.gz" | wc -l) - 1)) sites with data"
 }
@@ -210,7 +226,8 @@ stage_panel() {
 stage_summarize() {
     use_env
     python3 "$PYHELP" panel --cand "${DISC}/candidates.primers.tsv" --mafs-dir "$PANEL" \
-        --out "${OUT_DIR}/z_markers.final.tsv" --min-daf "$MIN_DAF"
+        --out "${OUT_DIR}/z_markers.final.tsv" --min-daf "$MIN_DAF" \
+        --sites "${PANEL}/sites.txt" --max-masked "$MAX_MASKED"
     log "final table: ${OUT_DIR}/z_markers.final.tsv"
 }
 
@@ -232,6 +249,18 @@ stage_submit() {
     echo "  sbatch -A $ACCOUNT -p $PARTITION -q $QOS -t $WALL --export=ALL --array=0-$((NG-1)) -c 16 --mem=32G -o logs/%x_%A_%a.out -J zm_panel $SCRIPT panel"
 }
 
+stage_submit_panel() {
+    mkdir -p "${REPO_DIR}/logs"
+    [[ -s "${PANEL}/sites.txt" ]] || die "run: bash $0 select"
+    local NG J3 J4
+    NG=$(ls "${PANEL}"/bamlists/*.list | wc -l)
+    J3=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q "$QOS" -t "$WALL" --export=ALL --array=0-$((NG-1)) \
+        -c 16 --mem=32G -J zm_panel -o "${REPO_DIR}/logs/%x_%A_%a.out" "$SCRIPT" panel) || die "panel refused"
+    J4=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q "$QOS" -t "$WALL" --export=ALL --dependency=afterok:"$J3" -c 2 --mem=8G \
+        -J zm_summary -o "${REPO_DIR}/logs/%x_%j.out" "$SCRIPT" summarize) || die "summary refused"
+    log "panel $J3 ($NG groups) -> summarize $J4  [qos $QOS, $WALL]"
+}
+
 stage_status() {
     echo "calls:      $(ls "$CALL_DIR"/*.call.txt 2>/dev/null | wc -l) / $(wc -l < "${OUT_DIR}/ref/haplotypes.txt" 2>/dev/null || echo ?)"
     [[ -s "${DISC}/candidates.primers.tsv" ]] && echo "candidates: $(($(wc -l < "${DISC}/candidates.primers.tsv") - 1))"
@@ -242,6 +271,7 @@ stage_status() {
 
 case "$MODE" in
     setup) stage_setup ;; align) stage_align ;; discover) stage_discover ;;
+    select) stage_select ;; submit-panel) stage_submit_panel ;;
     panel) stage_panel ;; summarize) stage_summarize ;; submit) stage_submit ;; status) stage_status ;;
     *) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
