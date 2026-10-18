@@ -367,6 +367,85 @@ def cmd_select(a):
     sys.stderr.write("[select] %d SNPs to the panel -> %s\n" % (len(chosen), a.out))
 
 
+# ------------------------------------------------------------------------------------------ assign
+def pile_counts(bases, ref):
+    """samtools mpileup base column -> {base: count} (ref as '.'/',' -> ref)."""
+    out = defaultdict(int)
+    i, n = 0, len(bases)
+    while i < n:
+        ch = bases[i]
+        if ch == "^":
+            i += 2; continue
+        if ch == "$":
+            i += 1; continue
+        if ch in "+-":
+            j = i + 1
+            while j < n and bases[j].isdigit():
+                j += 1
+            i = j + int(bases[i + 1:j]); continue
+        if ch in ".,":
+            out[ref] += 1
+        elif ch.upper() in "ACGT":
+            out[ch.upper()] += 1
+        i += 1
+    return out
+
+
+def cmd_assign(a):
+    """Per-bird Z ancestry from read counts at the panel-confirmed diagnostic SNPs: for each species
+    pair, the fraction of a bird's reads that carry the second species' allele (0 = first species,
+    1 = second). Females (one Z) should sit at 0 or 1; F1 males near 0.5."""
+    rows = list(csv.DictReader(open(a.final), delimiter="\t"))
+    sites = {}
+    for r in rows:
+        if r["type"] != "SNP" or not r.get("panel_confirmed_pairs"):
+            continue
+        for p in r["panel_confirmed_pairs"].split(","):
+            x, y = p.split("-")
+            ax, ay = r["allele_" + x], r["allele_" + y]
+            if {ax, ay} != {"A", "R"}:
+                continue
+            ally = r["alt"] if ay == "A" else r["ref"]
+            allx = r["alt"] if ax == "A" else r["ref"]
+            sites.setdefault((r["chrom"], int(r["pos"])), []).append((p, allx, ally))
+    meta = {}
+    for r in csv.DictReader(open(a.groups), delimiter="\t"):
+        meta[r["ID"]] = r
+    pairs = sorted({p for v in sites.values() for p, _, _ in v})
+    out = []
+    for f in sorted(glob.glob(os.path.join(a.pileups, "*.pileup"))):
+        bird = os.path.basename(f).split(".")[0]
+        cx, cy, ns = defaultdict(int), defaultdict(int), defaultdict(int)
+        with open(f) as fh:
+            for line in fh:
+                t = line.rstrip("\n").split("\t")
+                if len(t) < 5:
+                    continue
+                key = (t[0], int(t[1]))
+                if key not in sites:
+                    continue
+                cnt = pile_counts(t[4], t[2].upper())
+                for p, allx, ally in sites[key]:
+                    if cnt[allx] or cnt[ally]:
+                        ns[p] += 1
+                    cx[p] += cnt[allx]
+                    cy[p] += cnt[ally]
+        m = meta.get(bird, {})
+        row = {"ID": bird, "species": m.get("common", ""), "context": m.get("GROUP", ""),
+               "state": m.get("STATE_NAME", ""), "group": m.get("grp", "")}
+        for p in pairs:
+            tot = cx[p] + cy[p]
+            row["%s_sites" % p] = ns[p]
+            row["%s_reads" % p] = tot
+            row["%s_frac_%s" % (p, p.split("-")[1])] = "%.3f" % (cy[p] / tot) if tot else "NA"
+        out.append(row)
+    with open(a.out, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(out[0].keys()), delimiter="\t")
+        w.writeheader()
+        w.writerows(out)
+    sys.stderr.write("[assign] %d birds x %d pairs -> %s\n" % (len(out), len(pairs), a.out))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sp = ap.add_subparsers(dest="cmd")
@@ -391,6 +470,11 @@ def main():
     s.add_argument("--max-masked", type=float, default=0.2)
     s.add_argument("--min-clean", type=int, default=20)
     s.add_argument("--bin", type=int, default=20000)
+    s = sp.add_parser("assign")
+    s.add_argument("--final", required=True)
+    s.add_argument("--pileups", required=True)
+    s.add_argument("--groups", required=True)
+    s.add_argument("--out", required=True)
     s = sp.add_parser("panel")
     s.add_argument("--cand", required=True)
     s.add_argument("--mafs-dir", required=True)
@@ -401,7 +485,7 @@ def main():
     a = ap.parse_args()
     if not a.cmd:
         ap.error("choose a subcommand")
-    {"discover": cmd_discover, "hits": cmd_hits, "primers": cmd_primers, "select": cmd_select, "panel": cmd_panel}[a.cmd](a)
+    {"discover": cmd_discover, "hits": cmd_hits, "primers": cmd_primers, "select": cmd_select, "assign": cmd_assign, "panel": cmd_panel}[a.cmd](a)
 
 
 if __name__ == "__main__":

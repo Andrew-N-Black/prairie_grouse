@@ -22,6 +22,7 @@
 #   bash 14_z_markers.sh select        # re-pick the panel SNPs (MIN_CLEAN, BIN, MAX_MASKED) on the login node
 #   bash 14_z_markers.sh submit-panel  # rerun only the ANGSD panel check + summary
 #   bash 14_z_markers.sh submit-zbam   # cut Z-only BAMs from the CRAMs first (ANGSD CRAM decode errors), then panel + summary
+#   bash 14_z_markers.sh submit-assign # per-bird Z ancestry at the confirmed markers -> z_assign_per_bird.tsv
 #
 # Output: ${OUT_DIR}/z_markers.final.tsv, one row per candidate: alleles per species in the
 #   assemblies, haplotypes called, flank cleanliness, genome copies, W hits, repeat fraction,
@@ -292,6 +293,34 @@ stage_submit_zbam() {
     log "zbam $J0 -> panel $J3 -> summarize $J4  [qos $QOS, $WALL]"
 }
 
+# ----------------------------------------------------------------------------- assign (one job)
+# Per-bird Z ancestry: read counts at the panel-confirmed diagnostic SNPs (samtools mpileup on the
+# Z-only BAMs), summarised per species pair as the fraction of reads with the second species' allele.
+# Shows which individual birds carry another species' Z (the panel itself only gives group frequencies).
+stage_assign() {
+    use_env; find_ref
+    local A="${OUT_DIR}/assign" F="${OUT_DIR}/z_markers.final.tsv"
+    [[ -s "$F" ]] || die "no $F (run summarize)"
+    [[ -d "${PANEL}/bamlists_z" ]] || die "no Z-only BAMs (run submit-zbam)"
+    mkdir -p "${A}/pileups"
+    awk -F'\t' 'NR==1{for(i=1;i<=NF;i++)c[$i]=i; next}
+        $c["type"]=="SNP" && $c["panel_confirmed_pairs"]!="" {print $c["chrom"]"\t"$c["pos"]-1"\t"$c["pos"]}' "$F" \
+        | sort -k1,1 -k2,2n -u > "${A}/confirmed_sites.bed"
+    log "$(wc -l < "${A}/confirmed_sites.bed") confirmed diagnostic SNPs; pileups for $(cat "${PANEL}"/bamlists_z/*.list | wc -l) birds"
+    export LEPC_REF A
+    cat "${PANEL}"/bamlists_z/*.list | xargs -P "$THREADS" -I{} bash -c \
+        'samtools mpileup -l "$A/confirmed_sites.bed" -q 20 -Q 20 -B -f "$LEPC_REF" "$1" 2>/dev/null > "$A/pileups/$(basename "$1" .z.bam).z.pileup"' _ {}
+    python3 "$PYHELP" assign --final "$F" --pileups "${A}/pileups" --groups "$GROUPS_TSV" \
+        --out "${OUT_DIR}/z_assign_per_bird.tsv"
+    log "per-bird table: ${OUT_DIR}/z_assign_per_bird.tsv"
+}
+
+stage_submit_assign() {
+    mkdir -p "${REPO_DIR}/logs"
+    sbatch -A "$ACCOUNT" -p "$PARTITION" -q "$QOS" -t "$WALL" --export=ALL -c 16 --mem=16G \
+        -J zm_assign -o "${REPO_DIR}/logs/%x_%j.out" "$SCRIPT" assign
+}
+
 stage_submit_panel() {
     mkdir -p "${REPO_DIR}/logs"
     [[ -s "${PANEL}/sites.txt" ]] || die "run: bash $0 select"
@@ -315,6 +344,7 @@ stage_status() {
 case "$MODE" in
     setup) stage_setup ;; align) stage_align ;; discover) stage_discover ;;
     select) stage_select ;; submit-panel) stage_submit_panel ;; zbam) stage_zbam ;; submit-zbam) stage_submit_zbam ;;
+    assign) stage_assign ;; submit-assign) stage_submit_assign ;;
     panel) stage_panel ;; summarize) stage_summarize ;; submit) stage_submit ;; status) stage_status ;;
     *) sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
