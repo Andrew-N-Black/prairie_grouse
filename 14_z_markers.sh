@@ -72,6 +72,9 @@ MIN_CLEAN="${MIN_CLEAN:-20}"        # no other variable site within this many bp
 BIN="${BIN:-20000}"                 # panel: keep the cleanest marker per BIN bp per species pair
 MIN_DAF="${MIN_DAF:-0.95}"          # allele-frequency difference between allopatric groups
 MIN_IND_FRAC="${MIN_IND_FRAC:-0.5}" # ANGSD -minInd as a fraction of the group
+# PANEL_RF: regions ANGSD reads. Default = one region per candidate SNP (fast). If a group fails
+#   with "Failure to decode slice" (CRAM random access), use the whole Z instead:
+#   PANEL_RF=${OUT_DIR}/ref/z_regions.txt  (slower; output is still limited to the candidate SNPs)
 PRODUCT="${PRODUCT:-80-200}"        # short products for feathers / degraded field samples
 
 CALL_DIR="${OUT_DIR}/calls"; DISC="${OUT_DIR}/discovery"; PANEL="${OUT_DIR}/panel"
@@ -213,7 +216,7 @@ stage_panel() {
     l="${lists[${SLURM_ARRAY_TASK_ID:?array job}]}"; g="$(basename "$l" .list)"; n=$(wc -l < "$l")
     log "$g: $n birds"
     [[ -s "${PANEL}/${g}.mafs.gz" ]] && { log "$g done"; return 0; }
-    angsd -b "$l" -ref "$LEPC_REF" -sites "${PANEL}/sites.txt" -rf "${PANEL}/sites.regions" \
+    angsd -b "$l" -ref "$LEPC_REF" -sites "${PANEL}/sites.txt" -rf "${PANEL_RF:-${PANEL}/sites.regions}" \
         -GL 2 -doMajorMinor 3 -doMaf 1 -doCounts 1 \
         -minMapQ 20 -minQ 20 -remove_bads 1 -uniqueOnly 1 -only_proper_pairs 1 \
         -minInd "$(awk -v n="$n" -v f="$MIN_IND_FRAC" 'BEGIN{m=int(n*f); print (m<1?1:m)}')" \
