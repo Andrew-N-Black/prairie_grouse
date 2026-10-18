@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# 12d_mito_tree.sh — maximum-likelihood tree of the mitogenomes (report Figure 16)
+# 12d_mito_tree.sh — maximum-likelihood tree of the mitogenomes (report Figure 17C)
 #
 # Run after 12c_mito_qc.sh qc + collect. Small job: login node or a short standby job.
 #   bash 12d_mito_tree.sh            # fetch outgroup, align, infer the tree
@@ -17,7 +17,7 @@
 #
 # NOTE: this script was written from the methods text after the analysis; the tree
 # in report v80 was inferred by hand with these settings. Re-running it should
-# reproduce Figure 16 (identical topology; supports within UFBoot noise).
+# reproduce the report tree (identical topology; supports within UFBoot noise).
 # =============================================================================
 set -euo pipefail
 unset LD_PRELOAD

@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# STEP 13e: ONE SUMMARY TREE FOR THE AUTOSOMES AND ONE FOR THE Z (report Figure 18)
+# STEP 13e: ONE SUMMARY TREE FOR THE AUTOSOMES AND ONE FOR THE Z (report Figure 17)
 #
 # Run after 13_thex_phylogeny.sh (and 13d, if used) on Negishi. Nothing is realigned:
 # the step-13 window trees (work/iqtree/<chrom>/<window>.contree) are summarised.
