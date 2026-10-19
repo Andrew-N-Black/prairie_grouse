@@ -11,9 +11,10 @@
 # 1. Diagnostic sites: the 23 HiFi/Hi-C mitogenomes (12c collect) are aligned to the GRPC
 #    reference (MW574394.1); a site is diagnostic when all 7 LEPC share one base and every
 #    GRPC + STGR (and the reference) another.
-# 2. Reads: the panel CRAMs have no mitochondrial contig, so mito reads are among the unmapped
-#    reads; they are extracted (samtools fastq -f 4), mapped to MW574394.1 (minimap2 -x sr),
-#    and counted at the diagnostic sites (mapping and base quality >= 20).
+# 2. Reads: the bird's raw Illumina FASTQs (first MAX_PAIRS pairs; FASTQ_DIR/<ID>_S*_R1/R2_001.fastq.gz)
+#    are mapped to MW574394.1 (minimap2 -x sr); without FASTQs, the unmapped reads of its panel CRAM
+#    (no mitochondrial contig there) are used. Alleles are counted at the diagnostic sites
+#    (mapping and base quality >= 20).
 #
 # USAGE (Gautschi; uses the step-14 conda env):
 #   bash 12f_mito_read_check.sh F5594 F5436 F5440 F5596 F5547 F5462      # login node: a few birds
@@ -32,6 +33,8 @@ ZM="${ZM:-${CLUSTER_SCRATCH}/GROUSE/z_markers}"
 ENV="${ENV:-${ZM}/env}"
 LEPC_REF="${LEPC_REF:-$(cat "${ZM}/ref/lepc_ref.path")}"       # reference the CRAMs were written with
 CRAM_DIR="${CRAM_DIR:-/scratch/gautschi/blackan/GROUSE/nexus/crams_4.66x}"
+FASTQ_DIR="${FASTQ_DIR:-${ASM}/raw/Shotgun}"                  # <ID>_S*_R1_001.fastq.gz / _R2_ (preferred)
+MAX_PAIRS="${MAX_PAIRS:-10000000}"                            # read pairs used per bird (mito is high-copy)
 OUT="${OUT:-${MITO_DIR}/read_check}"
 THREADS="${SLURM_CPUS_PER_TASK:-8}"
 export PATH="${ENV}/bin:${PATH}"
@@ -94,17 +97,26 @@ sed -i "s/^MW_REF/${MCONTIG}/" "${OUT}/diag.bed"
 [[ -s "${MREF}.fai" ]] || samtools faidx "$MREF"
 
 # ---- 2. per bird --------------------------------------------------------------
-echo -e "ID\tunmapped_reads\tmito_reads\tdiag_sites_covered\tmedian_depth\treads_LEPC\treads_other\tfrac_LEPC\tsites_mixed" > "${OUT}/mito_read_check.tsv"
+echo -e "ID\treads_used\tmito_reads\tdiag_sites_covered\tmedian_depth\treads_LEPC\treads_other\tfrac_LEPC\tsites_mixed" > "${OUT}/mito_read_check.tsv"
 for ID in "$@"; do
-    C="${CRAM_DIR}/${ID}.cram"
-    [[ -s "$C" ]] || { echo "skip $ID: no $C"; continue; }
     B="${OUT}/${ID}.mito.bam"
+    R1=$(ls "${FASTQ_DIR}/${ID}"_S*_R1_001.fastq.gz 2>/dev/null | head -1 || true)
     if [[ ! -s "${B}.bai" ]]; then
-        samtools fastq -f 4 -T "$LEPC_REF" "$C" 2>/dev/null > "${OUT}/${ID}.unmapped.fq"
-        minimap2 -ax sr -t "$THREADS" "$MREF" "${OUT}/${ID}.unmapped.fq" 2>/dev/null \
-            | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B"
-        echo "$(awk 'END{print NR/4}' "${OUT}/${ID}.unmapped.fq")" > "${OUT}/${ID}.n_unmapped"
-        rm -f "${OUT}/${ID}.unmapped.fq"
+        if [[ -n "$R1" ]]; then                      # raw reads: first MAX_PAIRS pairs, paired mapping
+            R2="${R1/_R1_001/_R2_001}"
+            minimap2 -ax sr -t "$THREADS" "$MREF" \
+                <(zcat "$R1" | head -n $((MAX_PAIRS * 4))) <(zcat "$R2" | head -n $((MAX_PAIRS * 4))) 2>/dev/null \
+                | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B"
+            echo "${MAX_PAIRS} pairs ($(basename "$R1"))" > "${OUT}/${ID}.n_unmapped"
+        else                                         # fallback: unmapped reads kept in the panel CRAM
+            C="${CRAM_DIR}/${ID}.cram"
+            [[ -s "$C" ]] || { echo "skip $ID: no FASTQ in $FASTQ_DIR and no $C"; continue; }
+            samtools fastq -f 4 -T "$LEPC_REF" "$C" 2>/dev/null > "${OUT}/${ID}.unmapped.fq"
+            minimap2 -ax sr -t "$THREADS" "$MREF" "${OUT}/${ID}.unmapped.fq" 2>/dev/null \
+                | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B"
+            echo "$(awk 'END{print NR/4}' "${OUT}/${ID}.unmapped.fq") unmapped CRAM reads" > "${OUT}/${ID}.n_unmapped"
+            rm -f "${OUT}/${ID}.unmapped.fq"
+        fi
     fi
     samtools mpileup -l "${OUT}/diag.bed" -q 20 -Q 20 -B -f "$MREF" "$B" 2>/dev/null > "${OUT}/${ID}.diag.pileup"
     python3 - "${OUT}/diagnostic_sites.tsv" "${OUT}/${ID}.diag.pileup" "$ID" "$(cat "${OUT}/${ID}.n_unmapped")" \
