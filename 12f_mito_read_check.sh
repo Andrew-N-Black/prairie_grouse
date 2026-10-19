@@ -107,14 +107,14 @@ for ID in "$@"; do
             minimap2 -ax sr -t "$THREADS" "$MREF" \
                 <(zcat "$R1" | head -n $((MAX_PAIRS * 4))) <(zcat "$R2" | head -n $((MAX_PAIRS * 4))) 2>/dev/null \
                 | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B"
-            echo "${MAX_PAIRS} pairs ($(basename "$R1"))" > "${OUT}/${ID}.n_unmapped"
+            echo "${MAX_PAIRS}_pairs_FASTQ" > "${OUT}/${ID}.n_unmapped"
         else                                         # fallback: unmapped reads kept in the panel CRAM
             C="${CRAM_DIR}/${ID}.cram"
             [[ -s "$C" ]] || { echo "skip $ID: no FASTQ in $FASTQ_DIR and no $C"; continue; }
             samtools fastq -f 4 -T "$LEPC_REF" "$C" 2>/dev/null > "${OUT}/${ID}.unmapped.fq"
             minimap2 -ax sr -t "$THREADS" "$MREF" "${OUT}/${ID}.unmapped.fq" 2>/dev/null \
                 | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B"
-            echo "$(awk 'END{print NR/4}' "${OUT}/${ID}.unmapped.fq") unmapped CRAM reads" > "${OUT}/${ID}.n_unmapped"
+            echo "$(awk 'END{print NR/4}' "${OUT}/${ID}.unmapped.fq")_unmapped_CRAM_reads" > "${OUT}/${ID}.n_unmapped"
             rm -f "${OUT}/${ID}.unmapped.fq"
         fi
     fi
