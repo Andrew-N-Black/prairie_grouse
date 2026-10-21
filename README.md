@@ -12,11 +12,7 @@ genome assembly and quality control** of three prairie grouse species:
 **n = 23 individuals × 2 haplotypes = 46 assemblies** (7 LEPC, 6 GRPC,
 10 STGR), all assembled from **PacBio HiFi + Hi-C only**. Step 02 still supports ONT
 ultra-long reads (`--ul`, for any manifest row whose `ont_ul` is a path rather than `NA`),
-but none are used: three birds were sequenced with ONT-UL; F5468's yield was too low,
-and F5545 (LEPC) and F5597 (GRPC), first assembled with `--ul`, had Merqury QV 51.7-55.9
-against 62.2-64.7 for HiFi-only haplotypes, with no gain in contiguity, so they were
-re-assembled without it ([`accessory_scripts/rerun_without_ONT.sh`](accessory_scripts/rerun_without_ONT.sh);
-the ONT-based outputs are kept in `grouse_asm/archive_with_ONT/`).
+but none are used for the final assemblies (due to low ONT yield). 
 
 Assemblies are ordered against the **rock ptarmigan** reference
 (*Lagopus muta*, bLagMut1, `GCF_023343835.1`), and annotations are transferred
@@ -40,12 +36,6 @@ account: `dewoody` (Gautschi; `fnrdewoody` is the Negishi account). Sequence dat
 | Figure 17C (mitogenome tree) | steps 12d (12e draws it on its own) |
 | Table 3, Figure 16 (genome-wide window phylogenies) | step 13 (+ 13b statistics, 13c/13d window recovery); runs on Negishi |
 | Figure 17 (autosomal, Z and mitogenome summary trees) | steps 13e (Negishi), 13f (local R) |
-
-The superseded **chicken-guided** version of this pipeline is archived,
-unchanged, in [`chicken_reference_chain/`](chicken_reference_chain) for
-reference only; nothing in it is part of the current workflow or the report.
-Chicken GRCg7b is still downloaded (step 01), but only so step 04 can relate
-ptarmigan chromosome numbers to the chicken karyotype.
 
 ---
 
@@ -240,15 +230,6 @@ separated, in this column order:
 sample_id  species  hifi_bams  hic_r1  hic_r2  ont_ul
 ```
 
-`hifi_bams` may be a comma-separated list; `ont_ul` is a path or `NA`. Every
-step that loops over samples reads this file and indexes it by
-`SLURM_ARRAY_TASK_ID`, so the row order defines the array indices — don't
-reorder it between steps.
-
-> **Note:** species names are whitespace-trimmed when read (scripts 02, 05, 07, 11),
-> because the LEPC rows once carried a trailing space (`"LEPC "`) that produced
-> filenames such as `LEPC _F5545_hap1`. The manifest is now clean as well.
-
 ---
 
 ## Accessory scripts
@@ -271,22 +252,10 @@ it uses only the finished assemblies. The full rationale is in the header of
   outgroup, so it adds no species bias, and no grouse assembly's misjoins enter the
   coordinates. Chromosomes that fewer than half the haplotypes cover (microchromosomes
   30-33, 35, 36, 38) are dropped; W and MT are excluded.
-- **THExBuilder 1.0.4 pairwise-filter bug**: it computes a mismatch *count*, not a
-  proportion, so its default cutoff masks any mismatch. The script detects this and
-  passes 0.15 × sub-window length (15 per 100 bp), and exempts the outgroup.
 - **TopologyID** is the species-level relationship, not THEx's topobinner (with 47 tips
   nearly every window is a unique topology).
-- Install THEx from GitHub with `pip --no-deps` into a pinned env (`setup`); the
-  `ajharris_2374` conda package no longer solves.
 
 ## Notes on interpreting the QC
-
-**BUSCO completeness measures the assembly, not the reference.** Reference-guided
-ordering cannot change gene content — step 05 only reorders and renames what
-hifiasm and yahs produced. So re-running step 07 after changing reference should
-reproduce the previous score to within rounding. A score that *moves* means
-something went wrong in step 05 (sequence dropped by the length filter, or a
-mangled rename) and should be chased before anything downstream is believed.
 
 **Six haplotypes are ~100 Mb short and ~4 points lower in BUSCO.** This is not
 an assembly failure: they are the Z-bearing or W-bearing haplotype of a ZW
