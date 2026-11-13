@@ -4,9 +4,10 @@
 Reads, per chromosome, <sv-dir>/<CHROM>/<CHROM>.sv.vcf.gz (vg deconstruct + vcfbub),
 ref.txt (reference path and its length) and haps_per_species.tsv. Python 3 stdlib only.
 
-Each ALT allele whose length differs from REF by >= MIN_SV is an INS or DEL; an allele
-where REF and ALT are both >= MIN_SV but differ by less is COMPLEX (e.g. inversions or
-divergent replacements). Shorter alleles are ignored.
+The VCFs are vcfwave-decomposed. Each ALT allele whose length differs from REF by >= MIN_SV
+is an INS or DEL; a record vcfwave flags as an inversion (INFO INV) with alleles >= MIN_SV is
+INV; any other allele where REF and ALT are both >= MIN_SV is COMPLEX. Shorter alleles are
+ignored.
 
 For each SV allele, each species' frequency is computed over its called haplotypes. A
 species must have at least MIN_CALLED_FRAC x (haplotypes carrying the chromosome) called.
@@ -110,6 +111,7 @@ def main():
                     cols = [(i, n.split(".")[0]) for i, n in enumerate(f[9:], start=9)]
                     continue
                 ref, alts = f[3], f[4].split(",")
+                is_inv = bool(re.search(r'(^|;)INV(=|;|$)', f[7]))
                 gi = f[8].split(":").index("GT")
                 gts = defaultdict(list)            # species -> allele index per called haplotype
                 for i, sp in cols:
@@ -121,7 +123,9 @@ def main():
                         continue
                     rl, al_ = len(ref), len(alt)
                     diff = al_ - rl
-                    if diff >= a.min_sv:
+                    if is_inv and max(rl, al_) >= a.min_sv:
+                        typ, size = "INV", max(rl, al_)
+                    elif diff >= a.min_sv:
                         typ, size = "INS", diff
                     elif diff <= -a.min_sv:
                         typ, size = "DEL", -diff
@@ -160,7 +164,7 @@ def main():
     tab.close()
 
     # ---- per chromosome ----
-    keys = (["SV", "INS", "DEL", "COMPLEX", "classified", "classified_eq", "diag_any", f"diag_any_{eq}"]
+    keys = (["SV", "INS", "DEL", "INV", "COMPLEX", "classified", "classified_eq", "diag_any", f"diag_any_{eq}"]
             + [f"diag_{s}" for s in SPECIES] + [f"diag_{s}_{eq}" for s in SPECIES]
             + [f"fixed_{p}_{q}" for p, q in PAIRS] + [f"fixed_{p}_{q}_{eq}" for p, q in PAIRS]
             + [f"private_{s}" for s in SPECIES])
@@ -173,7 +177,7 @@ def main():
     # ---- size distribution ----
     with open(os.path.join(a.out, "sv_size_distribution.tsv"), "w") as f:
         f.write("type\tsize_bin\tall\tdiagnostic\tdiagnostic_" + eq + "\n")
-        for typ in ["INS", "DEL", "COMPLEX"]:
+        for typ in ["INS", "DEL", "INV", "COMPLEX"]:
             for lo, hi in BINS:
                 b = bin_label(lo)
                 f.write(f"{typ}\t{b}\t{sizes[(typ, b, 'all')]}\t{sizes[(typ, b, 'diagnostic')]}\t"
@@ -206,7 +210,7 @@ def main():
         text += ["Z vs autosomes (fraction of classifiable SVs; Fisher's exact test):"] + ["  " + l for l in lines]
 
     tot = Counter(); [tot.update(c) for _, c in per_chrom.values()]
-    text = [f"SV alleles >= {a.min_sv} bp: {tot['SV']:,} (INS {tot['INS']:,}, DEL {tot['DEL']:,}, COMPLEX {tot['COMPLEX']:,})",
+    text = [f"SV alleles >= {a.min_sv} bp: {tot['SV']:,} (INS {tot['INS']:,}, DEL {tot['DEL']:,}, INV {tot['INV']:,}, COMPLEX {tot['COMPLEX']:,})",
             f"classifiable (all three species called): {tot['classified']:,}; at n = {a.equal_n}: {tot['classified_eq']:,}",
             "diagnostic: " + ", ".join(f"{s} {tot['diag_' + s]:,}" for s in SPECIES)
             + f"; at n = {a.equal_n}: " + ", ".join(f"{s} {tot[f'diag_{s}_{eq}']:,}" for s in SPECIES),

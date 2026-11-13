@@ -18,7 +18,8 @@
 #      snarl, path traversals only); genotypes are PanSN haplotypes, so each
 #      bird is one VCF sample with hap1|hap2
 #   c. vcfbub -l 0 -a MAX_BUBBLE: keep top-level bubbles and pop any larger
-#      than MAX_BUBBLE into their children (as in pggb -V)
+#      than MAX_BUBBLE into their children, then vcfwave -I 1000 to realign
+#      each bubble into SNPs, indels and inversions (as in pggb -V)
 #   d. count, per species, the haplotypes that carry the chromosome (total path
 #      length >= half the chromosome's median), so a female haplotype holding
 #      only a fragment of the Z is not counted as a missing Z call
@@ -149,12 +150,16 @@ PYEOF
     echo "  vg deconstruct -P ${REF} ${HFLAG[*]:-} -a -e"
     cx "$VG_SIF" vg deconstruct -P "$REF" "${HFLAG[@]}" -a -e -t "$THREADS" "$GFA" > "${OUT}/${CHROM}.raw.vcf"
 
-    # c. pop large bubbles
-    cx "$PGGB_SIF" vcfbub -l 0 -a "$MAX_BUBBLE" --input "${OUT}/${CHROM}.raw.vcf" | gzip > "${OUT}/${CHROM}.sv.vcf.gz"
+    # c. pop large bubbles, then e. decompose each bubble into its primitive variants with vcfwave
+    #    (as pggb -V does). Without this, a long bubble that differs only by a few SNPs looks like a
+    #    "complex" SV, and a bubble with many haplotype-specific alleles can never look fixed.
+    cx "$PGGB_SIF" vcfbub -l 0 -a "$MAX_BUBBLE" --input "${OUT}/${CHROM}.raw.vcf" > "${OUT}/${CHROM}.popped.vcf"
+    cx "$PGGB_SIF" vcfwave -I 1000 -t "$THREADS" "${OUT}/${CHROM}.popped.vcf" | gzip > "${OUT}/${CHROM}.sv.vcf.gz"
     n_raw=$(grep -vc '^#' "${OUT}/${CHROM}.raw.vcf" || true)
-    n_pop=$(zcat "${OUT}/${CHROM}.sv.vcf.gz" | grep -vc '^#' || true)
-    rm -f "${OUT}/${CHROM}.raw.vcf"
-    echo "  sites: ${n_raw} deconstructed, ${n_pop} after vcfbub"
+    n_pop=$(grep -vc '^#' "${OUT}/${CHROM}.popped.vcf" || true)
+    n_wav=$(zcat "${OUT}/${CHROM}.sv.vcf.gz" | grep -vc '^#' || true)
+    rm -f "${OUT}/${CHROM}.raw.vcf" "${OUT}/${CHROM}.popped.vcf"
+    echo "  sites: ${n_raw} deconstructed, ${n_pop} after vcfbub, ${n_wav} after vcfwave"
     echo ">>> ${CHROM} done: $(date)"
     exit 0
 fi
