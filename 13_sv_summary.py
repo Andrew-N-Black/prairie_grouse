@@ -7,7 +7,8 @@ ref.txt (reference path and its length) and haps_per_species.tsv. Python 3 stdli
 The VCFs are vcfwave-decomposed. Each ALT allele whose length differs from REF by >= MIN_SV
 is an INS or DEL; a record vcfwave flags as an inversion (INFO INV) with alleles >= MIN_SV is
 INV; any other allele where REF and ALT are both >= MIN_SV is COMPLEX. Shorter alleles are
-ignored.
+ignored, as are exact duplicate records and alleles carried by no genotyped haplotype (vg
+omits the reference bird, so variants private to it have no carrier).
 
 For each SV allele, each species' frequency is computed over its called haplotypes. A
 species must have at least MIN_CALLED_FRAC x (haplotypes carrying the chromosome) called.
@@ -102,6 +103,7 @@ def main():
         classifiable = all(nhap.get(s, 0) > 0 for s in SPECIES)
         c = Counter()
         cols = None
+        seen = set()                                  # vcfwave can emit the same variant twice
         with gzip.open(vcf, "rt") as fh:
             for line in fh:
                 if line.startswith("##"):
@@ -133,6 +135,14 @@ def main():
                         typ, size = "COMPLEX", max(rl, al_)
                     else:
                         continue
+                    key = (f[1], ref, alt)
+                    if key in seen:
+                        c["duplicate"] += 1
+                        continue
+                    seen.add(key)
+                    if not any(x == k for s in gts for x in gts[s]):
+                        c["no_carrier"] += 1         # carried only by the reference bird (not genotyped) or no one
+                        continue
                     c["SV"] += 1; c[typ] += 1
                     sizes[(typ, bin_label(size), "all")] += 1
                     ok = classifiable and all(len(gts[s]) >= need[s] for s in SPECIES)
@@ -159,7 +169,8 @@ def main():
                               + [diag, ",".join(fixed), priv, diag_e, ",".join(fixed_e)])) + "\n")
         c["ref_len"] = int(ref_len)
         per_chrom[chrom] = (ref_path, c)
-        print(f"{chrom}: {c['SV']:,} SVs ({c['classified']:,} classifiable), "
+        print(f"{chrom}: {c['SV']:,} SVs ({c['classified']:,} classifiable; skipped {c['duplicate']:,} duplicates, "
+              f"{c['no_carrier']:,} with no genotyped carrier), "
               f"diagnostic {c['diag_any']:,} ({c[f'diag_any_{eq}']:,} at n={a.equal_n}), ref {ref_path}")
     tab.close()
 
