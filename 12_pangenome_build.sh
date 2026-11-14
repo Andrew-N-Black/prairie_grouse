@@ -23,14 +23,6 @@
 # embarrassingly-parallel sub-step (RepeatMasker per genome) is parallelized
 # internally with `xargs -P`.
 #
-# HONEST SCOPE NOTE: whole-genome PGGB across ~46 haplotypes of ~1.1 Gb bird
-# genomes is a heavy, potentially multi-day-to-multi-week alignment job. The
-# resource/time requests below are rough starting points, not a guarantee —
-# check them against what your Purdue RCAC allocation actually offers, and
-# consider per-chromosome partitioning (pggb's `partition-before-pggb`
-# helper) if the whole-genome run doesn't finish in your walltime. Because
-# your assemblies are already RagTag-oriented against the same rock ptarmigan
-# reference, chromosome-level partitioning should work cleanly if needed.
 #
 # RUN MODES (all from the repo root)
 #   Whole genome, one job (original behaviour):
