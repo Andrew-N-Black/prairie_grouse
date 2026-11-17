@@ -22,8 +22,8 @@
 #       Reports only: review ${OUT}/fcs/*/ and clean with fcs.py if anything is flagged.
 #
 # Female sex chromosomes: the haplotype with more chr_Z becomes Haplotype 1. Z/W
-# pieces in the other haplotype are moved into Haplotype 1 unless >= 80% of the
-# piece aligns to Haplotype 1's Z/W (then it is treated as a duplicated copy and
+# pieces in the other haplotype are moved into Haplotype 1 only if < DUP_COV (default 20%) of the
+# piece aligns to Haplotype 1 Z/W; otherwise it is treated as (partly) duplicated and
 # left unplaced in Haplotype 2). Needs minimap2; without it nothing is moved.
 # =============================================================================
 #SBATCH --job-name=ncbi_prep
@@ -64,7 +64,7 @@ prep)
     module load biocontainers 2>/dev/null || true
     module load minimap2 2>/dev/null || true
     command -v minimap2 >/dev/null || echo "WARNING: minimap2 not found; female Z/W pieces will not be moved"
-    python3 "${HERE}/ncbi_submission_prep.py" prep --out "$OUT" --threads "$THREADS" --only "$ONLY"
+    python3 "${HERE}/ncbi_submission_prep.py" prep --out "$OUT" --threads "$THREADS" --only "$ONLY" --dup-cov "${DUP_COV:-0.2}"
     ( cd "${OUT}/files" && md5sum *.fsa.gz > md5sums.txt )
     cat > "${OUT}/submission_note.txt" << 'EOF'
 Note for the NCBI diploid genome submission (paste into the comments):
