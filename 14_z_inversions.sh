@@ -57,7 +57,7 @@ MERGE="${MERGE:-10000}"                 # merge inverted segments closer than th
 FLANK="${FLANK:-10000}"                 # breakpoint within this of a gap or path end = flagged
 THREADS="${SLURM_CPUS_PER_TASK:-8}"
 STAGE="${STAGE:-${1:-all}}"
-UNTANGLE_M="${UNTANGLE_M:-256}"
+UNTANGLE_M="${UNTANGLE_M:-}"            # odgi untangle -m; default 256 (all) or 1000 (split)
 REPO="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 APPTAINER_BIN="$(command -v apptainer || command -v singularity || true)"
@@ -91,9 +91,12 @@ fi
 # one array task: untangle a single query path
 if [[ "$STAGE" == "one" ]]; then
     Q=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "${OUT}/queries.txt")
-    echo "  untangle ${Q} (-m ${UNTANGLE_M})"
-    cx "$PGGB_SIF" odgi untangle -i "$OG" -r "$REF" -q "$Q" -m "$UNTANGLE_M" -j 0 -n 1 -t "$THREADS" \
-        > "${OUT}/untangle_parts/part_$(printf %03d "$SLURM_ARRAY_TASK_ID").tsv"
+    I=$(printf %03d "$SLURM_ARRAY_TASK_ID")
+    # path lists as files (-R/-Q): odgi untangle aborts on an sdsl assertion with -r/-q names
+    printf "%s\n" "$Q" > "${OUT}/untangle_parts/query_${I}.txt"
+    echo "  untangle ${Q} (-m ${UNTANGLE_M:-1000})"
+    cx "$PGGB_SIF" odgi untangle -i "$OG" -R "${OUT}/target.txt" -Q "${OUT}/untangle_parts/query_${I}.txt" \
+        -m "${UNTANGLE_M:-1000}" -j 0 -n 1 -t "$THREADS" > "${OUT}/untangle_parts/part_${I}.tsv"
     exit 0
 fi
 
@@ -102,7 +105,7 @@ if [[ "$STAGE" == "all" ]]; then
     list_paths
     echo "  odgi untangle: $(wc -l < "${OUT}/queries.txt") query paths"
     cx "$PGGB_SIF" odgi untangle -i "$OG" -R "${OUT}/target.txt" -Q "${OUT}/queries.txt" \
-        -m "$UNTANGLE_M" -j 0 -n 1 -t "$THREADS" > "${OUT}/untangle.tsv"
+        -m "${UNTANGLE_M:-256}" -j 0 -n 1 -t "$THREADS" > "${OUT}/untangle.tsv"
     echo "  untangle rows: $(grep -vc 'query.name' "${OUT}/untangle.tsv")"
 fi
 
