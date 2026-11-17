@@ -21,6 +21,9 @@
 # USAGE (from the repo root)
 #   sbatch 06_z_inversions.sh                         # everything
 #   STAGE=analyze sbatch --export=ALL 06_z_inversions.sh   # rerun step 4 only (new thresholds)
+#   Faster on the full Z: one array task per query path, then the rest:
+#     bash 06_z_inversions.sh split        # submits the array + a dependent STAGE=post job
+#   (UNTANGLE_M sets odgi untangle -m; default 256, the split mode uses 1000)
 #   Put minimap2 on PATH first for the ptarmigan coordinates, e.g.
 #     export PATH=/home/blackan/.conda/envs/zindel/bin:$PATH
 #
@@ -53,7 +56,8 @@ MIN_INV="${MIN_INV:-50000}"             # minimum inversion span on the referenc
 MERGE="${MERGE:-10000}"                 # merge inverted segments closer than this (bp)
 FLANK="${FLANK:-10000}"                 # breakpoint within this of a gap or path end = flagged
 THREADS="${SLURM_CPUS_PER_TASK:-8}"
-STAGE="${STAGE:-all}"
+STAGE="${STAGE:-${1:-all}}"
+UNTANGLE_M="${UNTANGLE_M:-256}"
 REPO="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 APPTAINER_BIN="$(command -v apptainer || command -v singularity || true)"
@@ -64,19 +68,53 @@ mkdir -p "$OUT" logs
 echo "$REF" > "${OUT}/ref.txt"
 echo ">>> Z inversions: reference ${REF}  $(date)"
 
-if [[ "$STAGE" == "all" ]]; then
-    OG=$(find "$GRAPH_DIR" -maxdepth 1 -name "*.final.og" | head -n1)
-    [[ -s "$OG" ]] || { echo "ERROR: no *.final.og in ${GRAPH_DIR}"; exit 1; }
-
-    # 1. untangle every path against the reference path
+OG=$(find "$GRAPH_DIR" -maxdepth 1 -name "*.final.og" | head -n1)
+[[ -s "$OG" ]] || { echo "ERROR: no *.final.og in ${GRAPH_DIR}"; exit 1; }
+list_paths() {
     cx "$PGGB_SIF" odgi paths -i "$OG" -L > "${OUT}/paths.txt"
     grep -q -x -F "$REF" "${OUT}/paths.txt" || { echo "ERROR: ${REF} is not a path in ${OG}"; exit 1; }
     echo "$REF" > "${OUT}/target.txt"
     grep -v -x -F "$REF" "${OUT}/paths.txt" > "${OUT}/queries.txt"
+}
+
+# split mode (login node): one array task per query path, then STAGE=post
+if [[ "$STAGE" == "split" ]]; then
+    list_paths
+    N=$(wc -l < "${OUT}/queries.txt"); mkdir -p "${OUT}/untangle_parts"
+    jid=$(sbatch --parsable --export=ALL,STAGE=one,OUT="$OUT",REF="$REF",UNTANGLE_M="${UNTANGLE_M:-1000}" \
+          --array=0-$((N - 1)) -c 8 --mem=32G -t 12:00:00 --job-name=z_untangle "$0")
+    pid=$(sbatch --parsable --export=ALL,STAGE=post,OUT="$OUT",REF="$REF" --dependency=afterok:"$jid" "$0")
+    echo "Submitted ${N} untangle tasks (array ${jid}) and the post step (${pid})"
+    exit 0
+fi
+
+# one array task: untangle a single query path
+if [[ "$STAGE" == "one" ]]; then
+    Q=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "${OUT}/queries.txt")
+    echo "  untangle ${Q} (-m ${UNTANGLE_M})"
+    cx "$PGGB_SIF" odgi untangle -i "$OG" -r "$REF" -q "$Q" -m "$UNTANGLE_M" -j 0 -n 1 -t "$THREADS" \
+        > "${OUT}/untangle_parts/part_$(printf %03d "$SLURM_ARRAY_TASK_ID").tsv"
+    exit 0
+fi
+
+if [[ "$STAGE" == "all" ]]; then
+    # 1. untangle every path against the reference path
+    list_paths
     echo "  odgi untangle: $(wc -l < "${OUT}/queries.txt") query paths"
     cx "$PGGB_SIF" odgi untangle -i "$OG" -R "${OUT}/target.txt" -Q "${OUT}/queries.txt" \
-        -m 256 -j 0 -n 1 -t "$THREADS" > "${OUT}/untangle.tsv"
+        -m "$UNTANGLE_M" -j 0 -n 1 -t "$THREADS" > "${OUT}/untangle.tsv"
     echo "  untangle rows: $(grep -vc 'query.name' "${OUT}/untangle.tsv")"
+fi
+
+if [[ "$STAGE" == "post" ]]; then
+    # join the per-path parts: one header, then every part's rows
+    { grep -h -m1 'query.name' "${OUT}"/untangle_parts/part_*.tsv | head -1
+      for f in "${OUT}"/untangle_parts/part_*.tsv; do grep -v 'query.name' "$f" || true; done
+    } > "${OUT}/untangle.tsv"
+    echo "  untangle rows: $(grep -vc 'query.name' "${OUT}/untangle.tsv") from $(ls "${OUT}"/untangle_parts/part_*.tsv | wc -l) parts"
+fi
+
+if [[ "$STAGE" == "all" || "$STAGE" == "post" ]]; then
 
     # 2. path sequences (gaps and lengths)
     cx "$PGGB_SIF" odgi paths -i "$OG" -f > "${OUT}/z_paths.fa"
