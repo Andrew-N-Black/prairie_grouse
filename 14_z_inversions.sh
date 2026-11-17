@@ -5,30 +5,29 @@
 # path, step 05 (structural_variants/chr_Z/ref.txt).
 #
 # Step 05's variant calls split bubbles larger than 100 kb, so inversions above
-# that size were not resolved. This step reads them directly from the Z graph:
-#   1. odgi untangle: every Z path is segmented against one reference Z path
-#      (the same LEPC male haplotype as step 05), each segment forward or
-#      reverse relative to it
-#   2. odgi paths -f: every Z path's sequence, to locate gaps (>= 10 N) and
-#      path ends, where a mis-oriented scaffold would fake an inversion
-#   3. optional: the reference Z aligned to the rock ptarmigan Z (minimap2), so
-#      events are also reported in the ptarmigan coordinates the manuscript
-#      uses, and tested for overlap with the 41-44 Mb segment
-#   4. 06_z_inversions.py: inverted blocks >= MIN_INV per haplotype, clustered
-#      across haplotypes into events, classified as diagnostic / fixed between a
-#      species pair / polymorphic / private, with a breakpoint-quality flag
+# that size were not resolved. This step finds them by whole-chromosome alignment:
+#   1. odgi paths -f: the sequence of every Z path in the graph (PanSN names,
+#      the same pieces the graph was built from), used for alignment, gaps
+#      (>= 10 N) and path ends
+#   2. minimap2 -x asm10: every Z path aligned to the reference Z path (the same
+#      LEPC male haplotype as step 05); each alignment block is forward or
+#      reverse relative to the reference. (odgi untangle, the graph-native
+#      route, aborts on this graph with an sdsl assertion, so alignment is used.)
+#   3. optional: the reference Z aligned to the rock ptarmigan Z, so events are
+#      also reported in the ptarmigan coordinates the manuscript uses and tested
+#      for overlap with the 41-44 Mb segment
+#   4. 06_z_inversions.py: blocks running opposite to the rest of their path,
+#      merged and >= MIN_INV on the reference, clustered across haplotypes into
+#      events and classified as diagnostic / fixed between a species pair /
+#      polymorphic / private, with a breakpoint-quality flag
 #
-# USAGE (from the repo root)
-#   sbatch 06_z_inversions.sh                         # everything
-#   STAGE=analyze sbatch --export=ALL 06_z_inversions.sh   # rerun step 4 only (new thresholds)
-#   Faster on the full Z: one array task per query path, then the rest:
-#     bash 06_z_inversions.sh split        # submits the array + a dependent STAGE=post job
-#   (UNTANGLE_M sets odgi untangle -m; default 256, the split mode uses 1000)
-#   Put minimap2 on PATH first for the ptarmigan coordinates, e.g.
-#     export PATH=/home/blackan/.conda/envs/zindel/bin:$PATH
+# USAGE (from the repo root; put minimap2 on PATH first)
+#   export PATH=/home/blackan/.conda/envs/zindel/bin:$PATH
+#   PTARMIGAN_FA=/path/to/ptarmigan.fna sbatch --export=ALL 06_z_inversions.sh
+#   STAGE=analyze sbatch --export=ALL 06_z_inversions.sh     # rerun step 4 only
 #
 # OUTPUT: ${OUT}/{summary.txt, inversion_events.tsv, inversion_calls.tsv,
-#                 validation_candidates.tsv, untangle.tsv, ref_to_ptarmigan.paf}
+#                 validation_candidates.tsv, z_to_ref.paf, ref_to_ptarmigan.paf}
 # Validate any event that separates species with HiFi reads spanning its
 # breakpoints and with Hi-C contact maps before reporting it.
 # =============================================================================
@@ -39,7 +38,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=64G
-#SBATCH -t 12:00:00
+#SBATCH -t 06:00:00
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
 set -euo pipefail
@@ -52,12 +51,13 @@ PGGB_SIF="${PGGB_SIF:-${PROJECT_DIR}/containers/pggb.sif}"
 REF="${REF:-$(cut -f1 "${PROJECT_DIR}/structural_variants/chr_Z/ref.txt" 2>/dev/null || true)}"
 PTARMIGAN_FA="${PTARMIGAN_FA:-}"        # rock ptarmigan genome FASTA (GCF_023343835.1); optional
 PTARMIGAN_Z="${PTARMIGAN_Z:-NC_064472.1}"
+MIN_BLOCK="${MIN_BLOCK:-5000}"          # ignore alignment blocks shorter than this (bp)
+MIN_MAPQ="${MIN_MAPQ:-5}"
 MIN_INV="${MIN_INV:-50000}"             # minimum inversion span on the reference (bp)
-MERGE="${MERGE:-10000}"                 # merge inverted segments closer than this (bp)
+MERGE="${MERGE:-10000}"                 # merge inverted blocks closer than this (bp)
 FLANK="${FLANK:-10000}"                 # breakpoint within this of a gap or path end = flagged
 THREADS="${SLURM_CPUS_PER_TASK:-8}"
-STAGE="${STAGE:-${1:-all}}"
-UNTANGLE_M="${UNTANGLE_M:-}"            # odgi untangle -m; default 256 (all) or 1000 (split)
+STAGE="${STAGE:-all}"
 REPO="${SLURM_SUBMIT_DIR:-$(pwd)}"
 
 APPTAINER_BIN="$(command -v apptainer || command -v singularity || true)"
@@ -68,86 +68,52 @@ mkdir -p "$OUT" logs
 echo "$REF" > "${OUT}/ref.txt"
 echo ">>> Z inversions: reference ${REF}  $(date)"
 
-OG=$(find "$GRAPH_DIR" -maxdepth 1 -name "*.final.og" | head -n1)
-[[ -s "$OG" ]] || { echo "ERROR: no *.final.og in ${GRAPH_DIR}"; exit 1; }
-list_paths() {
-    cx "$PGGB_SIF" odgi paths -i "$OG" -L > "${OUT}/paths.txt"
-    grep -q -x -F "$REF" "${OUT}/paths.txt" || { echo "ERROR: ${REF} is not a path in ${OG}"; exit 1; }
-    echo "$REF" > "${OUT}/target.txt"
-    grep -v -x -F "$REF" "${OUT}/paths.txt" > "${OUT}/queries.txt"
+grab() {   # grab <fasta> <sequence name> <output>: extract one sequence
+    python3 - "$1" "$2" "$3" << 'PYEOF'
+import sys, gzip
+fa, want, dest = sys.argv[1:4]
+op = gzip.open if fa.endswith(".gz") else open
+keep, n = False, 0
+with op(fa, "rt") as fh, open(dest, "w") as o:
+    for line in fh:
+        if line.startswith(">"):
+            keep = line[1:].split()[0] == want
+            n += keep
+        if keep:
+            o.write(line)
+if not n:
+    sys.exit(f"ERROR: {want} not found in {fa}")
+PYEOF
 }
 
-# split mode (login node): one array task per query path, then STAGE=post
-if [[ "$STAGE" == "split" ]]; then
-    list_paths
-    N=$(wc -l < "${OUT}/queries.txt"); mkdir -p "${OUT}/untangle_parts"
-    jid=$(sbatch --parsable --export=ALL,STAGE=one,OUT="$OUT",REF="$REF",UNTANGLE_M="${UNTANGLE_M:-1000}" \
-          --array=0-$((N - 1)) -c 8 --mem=32G -t 12:00:00 --job-name=z_untangle "$0")
-    pid=$(sbatch --parsable --export=ALL,STAGE=post,OUT="$OUT",REF="$REF" --dependency=afterok:"$jid" "$0")
-    echo "Submitted ${N} untangle tasks (array ${jid}) and the post step (${pid})"
-    exit 0
-fi
-
-# one array task: untangle a single query path
-if [[ "$STAGE" == "one" ]]; then
-    Q=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "${OUT}/queries.txt")
-    I=$(printf %03d "$SLURM_ARRAY_TASK_ID")
-    # path lists as files (-R/-Q): odgi untangle aborts on an sdsl assertion with -r/-q names
-    printf "%s\n" "$Q" > "${OUT}/untangle_parts/query_${I}.txt"
-    echo "  untangle ${Q} (-m ${UNTANGLE_M:-1000})"
-    cx "$PGGB_SIF" odgi untangle -i "$OG" -R "${OUT}/target.txt" -Q "${OUT}/untangle_parts/query_${I}.txt" \
-        -m "${UNTANGLE_M:-1000}" -j 0 -n 1 -t "$THREADS" > "${OUT}/untangle_parts/part_${I}.tsv"
-    exit 0
-fi
-
 if [[ "$STAGE" == "all" ]]; then
-    # 1. untangle every path against the reference path
-    list_paths
-    echo "  odgi untangle: $(wc -l < "${OUT}/queries.txt") query paths"
-    cx "$PGGB_SIF" odgi untangle -i "$OG" -R "${OUT}/target.txt" -Q "${OUT}/queries.txt" \
-        -m "${UNTANGLE_M:-256}" -j 0 -n 1 -t "$THREADS" > "${OUT}/untangle.tsv"
-    echo "  untangle rows: $(grep -vc 'query.name' "${OUT}/untangle.tsv")"
-fi
+    command -v minimap2 >/dev/null || { echo "ERROR: minimap2 not on PATH (export PATH=<conda env>/bin:\$PATH)"; exit 1; }
+    OG=$(find "$GRAPH_DIR" -maxdepth 1 -name "*.final.og" | head -n1)
+    [[ -s "$OG" ]] || { echo "ERROR: no *.final.og in ${GRAPH_DIR}"; exit 1; }
 
-if [[ "$STAGE" == "post" ]]; then
-    # join the per-path parts: one header, then every part's rows
-    { grep -h -m1 'query.name' "${OUT}"/untangle_parts/part_*.tsv | head -1
-      for f in "${OUT}"/untangle_parts/part_*.tsv; do grep -v 'query.name' "$f" || true; done
-    } > "${OUT}/untangle.tsv"
-    echo "  untangle rows: $(grep -vc 'query.name' "${OUT}/untangle.tsv") from $(ls "${OUT}"/untangle_parts/part_*.tsv | wc -l) parts"
-fi
-
-if [[ "$STAGE" == "all" || "$STAGE" == "post" ]]; then
-
-    # 2. path sequences (gaps and lengths)
+    # 1. path sequences
     cx "$PGGB_SIF" odgi paths -i "$OG" -f > "${OUT}/z_paths.fa"
+    grep -c '>' "${OUT}/z_paths.fa" | xargs echo "  Z paths:"
+    grab "${OUT}/z_paths.fa" "$REF" "${OUT}/ref_Z.fa"
+
+    # 2. every path -> reference Z; convert to the table 06_z_inversions.py reads
+    minimap2 -x asm10 -t "$THREADS" --secondary=no "${OUT}/ref_Z.fa" "${OUT}/z_paths.fa" > "${OUT}/z_to_ref.paf"
+    awk -F'\t' -v r="$REF" -v mb="$MIN_BLOCK" -v mq="$MIN_MAPQ" '
+        BEGIN { OFS = "\t"; print "query.name","query.start","query.end","ref.name","ref.start","ref.end","score","inv","self.cov","n.th" }
+        $1 != r && $6 == r && $12 >= mq && ($4 - $3) >= mb {
+            print $1, $3, $4, $6, $8, $9, $10 / $11, ($5 == "-" ? 1 : 0), 1, 1 }' \
+        "${OUT}/z_to_ref.paf" > "${OUT}/untangle.tsv"
+    echo "  alignment blocks kept: $(($(wc -l < "${OUT}/untangle.tsv") - 1)) from $(wc -l < "${OUT}/z_to_ref.paf") in the PAF"
 
     # 3. optional: reference Z -> ptarmigan Z, for manuscript coordinates
     rm -f "${OUT}/ref_to_ptarmigan.paf"
-    if [[ -n "$PTARMIGAN_FA" ]] && command -v minimap2 >/dev/null; then
-        python3 - "$PTARMIGAN_FA" "$PTARMIGAN_Z" "${OUT}/z_paths.fa" "$REF" "$OUT" << 'PYEOF'
-import sys, gzip
-fa, zname, paths, ref, out = sys.argv[1:6]
-def grab(path, want, dest):
-    op = gzip.open if path.endswith(".gz") else open
-    keep, n = False, 0
-    with op(path, "rt") as fh, open(dest, "w") as o:
-        for line in fh:
-            if line.startswith(">"):
-                keep = line[1:].split()[0] == want
-                n += keep
-            if keep:
-                o.write(line)
-    if not n:
-        sys.exit(f"ERROR: {want} not found in {path}")
-grab(fa, zname, f"{out}/ptarmigan_Z.fa")
-grab(paths, ref, f"{out}/ref_Z.fa")
-PYEOF
-        minimap2 -x asm5 -t "$THREADS" "${OUT}/ptarmigan_Z.fa" "${OUT}/ref_Z.fa" > "${OUT}/ref_to_ptarmigan.paf"
-        rm -f "${OUT}/ptarmigan_Z.fa" "${OUT}/ref_Z.fa"
+    if [[ -n "$PTARMIGAN_FA" ]]; then
+        grab "$PTARMIGAN_FA" "$PTARMIGAN_Z" "${OUT}/ptarmigan_Z.fa"
+        minimap2 -x asm10 -t "$THREADS" --secondary=no "${OUT}/ptarmigan_Z.fa" "${OUT}/ref_Z.fa" > "${OUT}/ref_to_ptarmigan.paf"
+        rm -f "${OUT}/ptarmigan_Z.fa"
         echo "  ptarmigan liftover: $(wc -l < "${OUT}/ref_to_ptarmigan.paf") alignment blocks"
     else
-        echo "  (skipping ptarmigan coordinates: set PTARMIGAN_FA and put minimap2 on PATH)"
+        echo "  (skipping ptarmigan coordinates: set PTARMIGAN_FA)"
     fi
 fi
 
