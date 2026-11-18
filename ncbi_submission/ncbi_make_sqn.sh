@@ -82,11 +82,17 @@ sqn)
     echo ">>> done $(date)"
     ;;
 check)
+    set +e +o pipefail                                  # report, never stop, if files are missing
+    n=0
     for d in "${SQN}"/F*_hap?; do
-        b=$(basename "$d")
-        nerr=$(grep -h -c -E '^(ERROR|REJECT)' "$d"/*.val 2>/dev/null | awk '{s+=$1} END{print s+0}')
-        printf "%s\tsqn=%s\terrors=%s\n" "$b" "$(ls "$d"/*.sqn 2>/dev/null | wc -l)" "$nerr"
+        [[ -d "$d" ]] || continue
+        n=$((n + 1)); b=$(basename "$d")
+        nsqn=$(ls "$d"/*.sqn 2>/dev/null | wc -l)
+        nval=$(ls "$d"/*.val 2>/dev/null | wc -l)
+        nerr=$(cat "$d"/*.val 2>/dev/null | grep -c -E '^(ERROR|REJECT)')
+        printf "%s\tsqn=%s\tval=%s\terrors=%s\n" "$b" "$nsqn" "$nval" "$nerr"
     done
+    echo "assemblies checked: ${n} (in ${SQN})"
     echo; echo "Error types across all files:"
     cat "${SQN}"/F*_hap?/*.val 2>/dev/null | grep -E '^(ERROR|REJECT)' | sed -E 's/^([A-Z]+): valid \[([^]]+)\].*/\1 \2/' | sort | uniq -c | sort -rn | head -20
     ;;
