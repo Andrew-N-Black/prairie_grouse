@@ -26,7 +26,7 @@
 #   (the script puts ${PIXY_ENV}/bin on PATH itself; never overwrite PATH)
 #
 # USAGE (from the repo root)
-#   HIFI_DIR=/path/to/hifi bash 07_pixy_divergence.sh samples    # writes samples.tsv: CHECK IT
+#   bash 07_pixy_divergence.sh samples      # writes samples.tsv from HIFI_DIR: CHECK IT
 #   sbatch --export=ALL,STAGE=ref 07_pixy_divergence.sh
 #   bash 07_pixy_divergence.sh map          # submits one mapping task per bird
 #   bash 07_pixy_divergence.sh call         # submits the chunk array + summary (afterok)
@@ -64,7 +64,7 @@ SV_ROOT="${PROJECT_DIR}/structural_variants"
 OUT="${OUT:-${PROJECT_DIR}/pixy_divergence}"
 PGGB_SIF="${PGGB_SIF:-${PROJECT_DIR}/containers/pggb.sif}"
 PIXY_ENV="${PIXY_ENV:-/home/blackan/.conda/envs/pixy}"
-HIFI_DIR="${HIFI_DIR:-}"
+HIFI_DIR="${HIFI_DIR:-${PROJECT_DIR}/raw/HiFi/bams}"   # the reads given to hifiasm
 FEMALES="${FEMALES:-F5503,F5595,F5596,F5598,F5599,F5600}"   # birds whose assemblies carry a W
 REF_OVERRIDE="${REF_OVERRIDE:-}"
 SAMPLES="${SAMPLES:-${OUT}/samples.tsv}"
@@ -102,8 +102,11 @@ samples)
     tr ',' '\n' <<< "$FEMALES" > "${OUT}/females.txt"
     printf "sample\tspecies\treads\tsex\n" > "$SAMPLES"
     while IFS=. read -r SP S; do
-        R=$(find -L "$HIFI_DIR" -type f \( -name "*${S}*.fastq.gz" -o -name "*${S}*.fq.gz" -o -name "*${S}*.fasta.gz" \
-                -o -name "*${S}*hifi_reads*.bam" -o -name "*${S}*.ccs.bam" \) \
+        # top level of HIFI_DIR only (subfolders such as reseq/ are ignored); a bird's reads are
+        # <ID>_*.bam / <ID>.bam (e.g. F5540_m84221_..._.hifi_reads.bc2179.bam, F5462_MERGED.bam)
+        # or <ID>_*.fastq.gz / .fq.gz / .fasta.gz; .pbi indexes are not matched
+        R=$(find -L "$HIFI_DIR" -maxdepth 1 -type f \( -name "${S}_*.bam" -o -name "${S}.bam" \
+                -o -name "${S}_*.fastq.gz" -o -name "${S}_*.fq.gz" -o -name "${S}_*.fasta.gz" \) \
                 ! -iname "*hic*" ! -iname "*hi-c*" ! -iname "*_ont*" ! -iname "*nanopore*" ! -name "*_R[12]*" 2>/dev/null | sort | paste -sd, -)
         SEX=M; grep -qx "$S" "${OUT}/females.txt" && SEX=F
         printf "%s\t%s\t%s\t%s\n" "$S" "$SP" "${R:-MISSING}" "$SEX" >> "$SAMPLES"

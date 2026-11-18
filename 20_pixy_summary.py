@@ -13,6 +13,9 @@ Outputs (in --out):
   per_chromosome.tsv    the same per chromosome (chr_Z_males = Z with males only)
   groups.tsv            autosomes, macro (chr_1-chr_8), micro (chr_9+), Z, Z males only
   z_vs_autosomes.tsv    Z / autosome ratios with window-bootstrap 95% CIs
+  pi_by_species.tsv     pi per species: autosomes, Z, Z males only; Z/A ratio (males-only Z)
+                        with bootstrap CI, against the neutral expectations 0.75 (equal
+                        breeding sex ratio) and 1.125 (maximum, few breeding males)
   genome_scan.{png,pdf} dxy and Fst along the genome for each species pair
   summary.txt           the main numbers in words
 """
@@ -145,6 +148,37 @@ def main():
     zr = pd.DataFrame(zr)
     zr.to_csv(os.path.join(a.out, "z_vs_autosomes.tsv"), sep="\t", index=False, float_format="%.6g")
 
+    # pi per species; Z/A uses the males-only Z (females are hemizygous)
+    pis = []
+    for males in (False, True):
+        p = load(a.pixy, "pi", males)
+        if not p.empty:
+            pis.append(p)
+    pi = pd.concat(pis, ignore_index=True)
+    pi = pi[(pi.no_sites >= a.min_sites) & (pi.chromosome != "chr_W")]
+    pi["group"] = pi.chromosome.map(lambda c: "Z_males_only" if c == "chr_Z_males" else "Z" if c == "chr_Z" else "autosomes")
+    prow = []
+    for sp in SP:
+        d = pi[pi["pop"] == sp]
+        obs = {g: d[d.group == g][["count_diffs", "count_comparisons"]].to_numpy(float) for g in ("autosomes", "Z", "Z_males_only")}
+        val = {g: (x[:, 0].sum() / x[:, 1].sum() if len(x) else np.nan) for g, x in obs.items()}
+        r = {"species": sp, "pi_autosomes": val["autosomes"], "pi_Z_all": val["Z"], "pi_Z_males": val["Z_males_only"],
+             "A_windows": len(obs["autosomes"]), "Z_males_windows": len(obs["Z_males_only"])}
+        Z, A = obs["Z_males_only"], obs["autosomes"]
+        if len(Z) >= 10 and len(A) >= 10:
+            bz = np.array([Z[i].sum(0) for i in (rng.integers(0, len(Z), len(Z)) for _ in range(a.boot))])
+            ba = np.array([A[i].sum(0) for i in (rng.integers(0, len(A), len(A)) for _ in range(a.boot))])
+            rb = (bz[:, 0] / bz[:, 1]) / (ba[:, 0] / ba[:, 1])
+            r["Z_A_ratio"] = val["Z_males_only"] / val["autosomes"]
+            r["ci95_lo"], r["ci95_hi"] = np.nanpercentile(rb, [2.5, 97.5])
+            r["boot_frac_below_0.75"] = float(np.mean(rb < 0.75))
+            r["vs_neutral"] = ("below 0.75" if r["ci95_hi"] < 0.75 else "above 1.125" if r["ci95_lo"] > 1.125
+                               else "within 0.75-1.125" if r["ci95_lo"] >= 0.75 and r["ci95_hi"] <= 1.125
+                               else "overlaps 0.75" if r["ci95_lo"] < 0.75 else "overlaps 1.125")
+        prow.append(r)
+    ps = pd.DataFrame(prow)
+    ps.to_csv(os.path.join(a.out, "pi_by_species.tsv"), sep="\t", index=False, float_format="%.6g")
+
     # words
     with open(os.path.join(a.out, "summary.txt"), "w") as fo:
         fo.write(f"pixy summary: {w[~w.chromosome.str.endswith('_males')].groupby('pair').sites.sum().iloc[0]:,} "
@@ -161,6 +195,16 @@ def main():
             for _, r in zr[(zr.pair == pair) & (zr.stat.isin(["dxy", "fst_hudson", "da"]))].iterrows():
                 fo.write(f"  Z/A {r.stat:<10} ({r.z_group}): {r.ratio_Z_A:.2f} (95% CI {r.ci95_lo:.2f}-{r.ci95_hi:.2f})\n")
             fo.write("\n")
+        fo.write("Nucleotide diversity per species (Z/A uses the males-only Z; neutral expectation 0.75 with an\n"
+                 "equal breeding sex ratio, up to 1.125 when few males breed, as on leks)\n")
+        for _, r in ps.iterrows():
+            line = (f"  {r.species}: pi autosomes {r.pi_autosomes:.5f}  Z all birds {r.pi_Z_all:.5f}  "
+                    f"Z males {r.pi_Z_males:.5f}")
+            if "Z_A_ratio" in r and pd.notna(r.get("Z_A_ratio")):
+                line += (f"  Z/A {r.Z_A_ratio:.2f} (95% CI {r.ci95_lo:.2f}-{r.ci95_hi:.2f}; {r.vs_neutral}; "
+                         f"{int(r.Z_males_windows)} Z windows)")
+            fo.write(line + "\n")
+        fo.write("  (GRPC males-only Z = one bird, F5597: two Z copies, so its Z pi is noisy)\n")
     print(open(os.path.join(a.out, "summary.txt")).read())
 
     # genome scan
