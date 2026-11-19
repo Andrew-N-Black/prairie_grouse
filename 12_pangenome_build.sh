@@ -116,6 +116,7 @@ COMPARE_DIR="${PROJECT_DIR}/comparison"
 #                   SLURM_ARRAY_TASK_ID (write it first with: bash $0 list)
 #   STAGE=summary   merge per-chromosome graphs, then genome-wide steps 4-7
 #   STAGE=te        TE annotation only (step 6); can run while the graphs build
+#   STAGE=panacus_autosomes  autosome-only growth curves for Fig. 2A (after summary)
 CHROM="${CHROM:-}"
 STAGE="${STAGE:-}"
 MODE="${1:-}"
@@ -240,6 +241,39 @@ fi
 if [[ ! -x "$PANACUS_BIN" ]]; then
     echo "ERROR: panacus install failed — expected binary not found at ${PANACUS_BIN}"
     exit 1
+fi
+
+# =============================================================================
+# STAGE=panacus_autosomes: growth curves (Fig. 2A) restricted to the autosomes.
+# The Z and W are excluded because in every female the Z and W assembled in one
+# haplotype and the other haplotype lacks both: each Z-less haplotype removes
+# the whole ~75-Mb Z from the core, so whole-genome core curves mostly track how
+# many females a species has. Keeps only P-lines whose contig is chr_<number>
+# (including _pN pieces cut in step 07/08); unplaced scaffolds are excluded too.
+#   STAGE=panacus_autosomes sbatch --export=ALL -c 32 --mem=250G -t 1-00:00:00 12_pangenome_build.sh
+# =============================================================================
+if [[ "$STAGE" == "panacus_autosomes" ]]; then
+    GFA="${PANGENOME_DIR}/merged/pangenome.final.gfa"
+    [[ -s "$GFA" ]] || { echo "ERROR: ${GFA} not found (run STAGE=summary first)"; exit 1; }
+    mkdir -p "$COMPARE_DIR"
+    AUTO_GFA="${COMPARE_DIR}/.autosomes.paths_only.gfa"
+    awk -F'\t' '$1 != "P" { print; next }
+                 { n = split($2, f, "#"); if (f[n] ~ /^chr_[0-9]+(_p[0-9]+)?$/) print }' "$GFA" > "$AUTO_GFA"
+    grep -c '^P' "$AUTO_GFA" | xargs echo "  autosomal paths kept:"
+    "$PANACUS_BIN" histgrowth -t "$THREADS" -c bp -l 1,1 -q 0,1 -H "$AUTO_GFA" \
+        > "${COMPARE_DIR}/pangenome_histgrowth_autosomes_all.tsv"
+    for SP in GRPC LEPC STGR; do
+        awk -F'\t' -v sp="${SP}." '$1 != "P" || index($2, sp) == 1' "$AUTO_GFA" > "${AUTO_GFA}.${SP}"
+        "$PANACUS_BIN" histgrowth -t "$THREADS" -c bp -l 1,1 -q 0,1 -H "${AUTO_GFA}.${SP}" \
+            > "${COMPARE_DIR}/pangenome_histgrowth_autosomes_${SP}.tsv"
+        rm -f "${AUTO_GFA}.${SP}"
+    done
+    rm -f "$AUTO_GFA"
+    for f in "${COMPARE_DIR}"/pangenome_histgrowth_autosomes_*.tsv; do
+        echo "  $(basename "$f"): $(tail -n1 "$f" | cut -f1-3)"
+    done
+    echo ">>> done $(date)"
+    exit 0
 fi
 
 echo ">>> 12_pangenome_build.sh"

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Step 12b: Figure 3A (pangenome growth and core by species) and 3B (repeat and gene content
-per haplotype), drawn from the step-12 summary tables.
-usage: python3 12b_fig3_pangenome.py <dir with pangenome_histgrowth_{all,GRPC,LEPC,STGR}.tsv,
+"""Step 12b: Fig. 2A (pangenome growth and core by species; manuscript Fig. 2, formerly Fig. 3) and
+2B (repeat and gene content per haplotype), drawn from the step-12 summary tables.
+Panel A uses the autosome-only growth tables (pangenome_histgrowth_autosomes_*.tsv, from
+STAGE=panacus_autosomes of step 12) when present: in each female the Z and W assembled in one
+haplotype and the other lacks both, so whole-genome core curves mostly track the number of females.
+usage: python3 12b_fig3_pangenome.py <dir with pangenome_histgrowth_[autosomes_]{all,GRPC,LEPC,STGR}.tsv,
                                       genome_length_by_haplotype.tsv, per_haplotype_summary.tsv> [out dir]"""
-import sys
+import sys, os
 import pandas as pd, numpy as np, matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -18,22 +21,28 @@ plt.rcParams.update({"font.family": "Liberation Sans", "font.size": 11, "axes.sp
 
 # ---------------- A: growth ----------------
 fig, ax = plt.subplots(figsize=(6.5, 4.5))
+AUTO = os.path.exists(f"{D}/pangenome_histgrowth_autosomes_all.tsv")
+PFX = "pangenome_histgrowth_autosomes_" if AUTO else "pangenome_histgrowth_"
+print("panel A:", "autosomes only" if AUTO else "WHOLE GENOME (autosome tables not found)")
+ymin, ymax = [], []
 for key, lab in [("all", "All"), ("GRPC", "GRPC"), ("LEPC", "LEPC"), ("STGR", "STGR")]:
-    d = pd.read_csv(f"{D}/pangenome_histgrowth_{key}.tsv", sep="\t", skiprows=5, header=None, names=["n", "pan", "core"])
+    d = pd.read_csv(f"{D}/{PFX}{key}.tsv", sep="\t", skiprows=5, header=None, names=["n", "pan", "core"])
     d = d[d.n > 0]
     lw = 2.2 if lab == "All" else 1.6
     ax.plot(d.n, d.pan / 1e6, color=COL[lab], lw=lw, solid_capstyle="round")
     ax.plot(d.n, d.core / 1e6, color=COL[lab], lw=lw, ls=(0, (4, 2)))
+    ymin.append(d.core.min() / 1e6); ymax.append(d.pan.max() / 1e6)
 ax.set_xlabel("Number of haplotypes")
-ax.set_ylabel("Sequence (Mb)")
-ax.set_xlim(0, 47); ax.set_ylim(820, 1170)
+ax.set_ylabel("Autosomal sequence (Mb)" if AUTO else "Sequence (Mb)")
+pad = (max(ymax) - min(ymin)) * 0.05
+ax.set_xlim(0, 47); ax.set_ylim(min(ymin) - pad, max(ymax) + pad)
 ax.set_xticks([1, 10, 20, 30, 40, 46])
 h = [Line2D([], [], color=COL[k], lw=2.2 if k == "All" else 1.6) for k in ["All", "GRPC", "LEPC", "STGR"]]
 l1 = ax.legend(h, ["All (n = 46)", "GRPC (n = 12)", "LEPC (n = 14)", "STGR (n = 20)"], title="Haplotypes",
                frameon=False, loc="upper left", bbox_to_anchor=(1.0, 1.0), alignment="left")
 ax.add_artist(l1)
 h2 = [Line2D([], [], color="k", lw=1.6), Line2D([], [], color="k", lw=1.6, ls=(0, (4, 2)))]
-ax.legend(h2, ["Pangenome", "Core"], title="Sequence", frameon=False, loc="upper left",
+ax.legend(h2, ["Pangenome (total)", "Core"], title="Sequence", frameon=False, loc="upper left",
           bbox_to_anchor=(1.0, 0.45), alignment="left")
 fig.tight_layout()
 fig.savefig(f"{OUT}/Fig3A_pangenome_growth.png", dpi=600)
