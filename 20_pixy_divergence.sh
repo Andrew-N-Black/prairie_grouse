@@ -225,9 +225,11 @@ summary)
     echo ">>> pixy output for ${D} of ${N} chunks"
     python3 "${REPO}/20_pixy_summary.py" --pixy "${OUT}/pixy" --samples "$SAMPLES" --out "${OUT}/summary" \
         --min-sites "$MIN_SITES" --max-div "$MAX_DIV" --boot "$BOOT"
+    python3 "${REPO}/20c_figS6_genome_scans.py" "${OUT}/summary"                  # fig. S6
     # Figure 7: needs the reference-Z -> ptarmigan-Z alignment from step 14
     if cp "${PROJECT_DIR}/z_inversions/ref_to_ptarmigan.paf" "${OUT}/summary/" 2>/dev/null; then
         python3 "${REPO}/20b_fig7_diversity_divergence.py" "${OUT}/summary"
+        python3 "${REPO}/20b_fig7_diversity_divergence.py" "${OUT}/summary" --dxy     # alternative with dxy tracks
     else
         echo "  (no z_inversions/ref_to_ptarmigan.paf: run step 14 with PTARMIGAN_FA for Figure 7)"
     fi

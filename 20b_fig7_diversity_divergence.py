@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Figure 7 (step 20): FST along the genome, pi and divergence by chromosome class, and the Z in
 rock ptarmigan coordinates. Run after 20_pixy_summary.py.
-usage: python3 20b_fig7_diversity_divergence.py <summary dir> [<out prefix>]
+usage: python3 20b_fig7_diversity_divergence.py <summary dir> [<out prefix>] [--dxy]
+  --dxy  panel A shows dxy beneath FST for every species pair (alternative version)
 needs <summary dir>/{windows.tsv, groups.tsv, ref_to_ptarmigan.paf}"""
 import sys, os
-SUM = sys.argv[1]; OUTP = sys.argv[2] if len(sys.argv) > 2 else os.path.join(SUM, "Fig7_diversity_divergence")
+WITH_DXY = "--dxy" in sys.argv
+ARGS = [x for x in sys.argv[1:] if x != "--dxy"]
+SUM = ARGS[0]; OUTP = ARGS[1] if len(ARGS) > 1 else os.path.join(SUM, "Fig7_diversity_divergence" + ("_fst_dxy" if WITH_DXY else ""))
 import pandas as pd, numpy as np, re
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -56,29 +59,37 @@ for c in chroms:
     off[c] = x; x += L[c] * BIN + 6e6
 a["x"] = (a.bin * BIN + BIN / 2 + a.chromosome.map(off)) / 1e6
 
-fig = plt.figure(figsize=(7.2, 8.6))
-gs = fig.add_gridspec(5, 6, height_ratios=[1, 1, 1, 1.15, 1.15], hspace=0.6, wspace=1.1)
+TRACKS = [(p, st) for p in PAIRS for st in (("fst", "dxy") if WITH_DXY else ("fst",))]
+NA = len(TRACKS)
+fig = plt.figure(figsize=(7.2, 5.6 + 1.0 * NA))
+gs = fig.add_gridspec(NA + 2, 6, height_ratios=[1] * NA + [1.15, 1.15], hspace=0.6, wspace=1.1)
+DXY_MAX = np.nanpercentile(a.dxy * 1e3, 99.8) * 1.05      # one dxy scale for all pairs
 
-# A: Fst along the genome
-for r, pair in enumerate(PAIRS):
+# A: FST (and optionally dxy) along the genome
+for r, (pair, st) in enumerate(TRACKS):
     ax = fig.add_subplot(gs[r, :])
     d = a[a.pair == pair]
+    s1, s2 = pair.split("-")
+    spA, spB = ("LEPC", s1 if s1 != "LEPC" else s2) if "LEPC" in (s1, s2) else (s1, s2)   # LEPC first, then GRPC, STGR
     for k, c in enumerate(chroms):
         dc = d[d.chromosome == c]
         if c == "chr_Z":
             ax.axvspan(off[c] / 1e6 - 2, (off[c] + L[c] * BIN) / 1e6 + 2, color="#F3E3E3", lw=0, zorder=0)
-        s1, s2 = pair.split("-")
-        spA, spB = ("LEPC", s1 if s1 != "LEPC" else s2) if "LEPC" in (s1, s2) else (s1, s2)   # LEPC first, then GRPC, STGR
-        ax.scatter(dc.x, dc.fst, s=1.6, lw=0, color=COL[spA] if k % 2 == 0 else COL[spB], rasterized=True, zorder=2)
-    ax.set_ylim(-0.02, 1.02); ax.set_xlim(-3, x / 1e6)
-    ax.set_ylabel(f"$F_{{ST}}$\n{PLAB[pair]}")
+        yv = dc.fst if st == "fst" else (dc.dxy * 1e3).clip(upper=DXY_MAX)
+        ax.scatter(dc.x, yv, s=1.6, lw=0, color=COL[spA] if k % 2 == 0 else COL[spB], rasterized=True, zorder=2)
+    ax.set_xlim(-3, x / 1e6)
+    if st == "fst":
+        ax.set_ylim(-0.02, 1.02); ax.set_ylabel(f"$F_{{ST}}$\n{PLAB[pair]}")
+        gA = G[(G.pair == pair) & (G.group == "autosomes")].fst_hudson.iloc[0]
+    else:
+        ax.set_ylim(0, DXY_MAX); ax.set_ylabel(f"$d_{{XY}}$ (×10$^{{-3}}$)\n{PLAB[pair]}")
+        gA = G[(G.pair == pair) & (G.group == "autosomes")].dxy.iloc[0] * 1e3
+    ax.axhline(gA, color="#333333", lw=0.6, ls=(0, (3, 2)), xmax=off["chr_Z"] / x * 0.995)
     big = {"chr_" + str(i) for i in range(1, 9)} | {"chr_10", "chr_15", "chr_20", "chr_Z"}
     ax.set_xticks([(off[c] + L[c] * BIN / 2) / 1e6 for c in chroms if c in big])
-    ax.set_xticklabels([c.replace("chr_", "") for c in chroms if c in big] if r == len(PAIRS) - 1 else [])
+    ax.set_xticklabels([c.replace("chr_", "") for c in chroms if c in big] if r == NA - 1 else [])
     if r == 0:
         ax.text(-0.065, 1.08, "A", transform=ax.transAxes, fontsize=10, fontweight="bold")
-    gA = G[(G.pair == pair) & (G.group == "autosomes")].fst_hudson.iloc[0]
-    ax.axhline(gA, color="#333333", lw=0.6, ls=(0, (3, 2)), xmax=off["chr_Z"] / x * 0.995)
 ax.set_xlabel("Chromosome (500-kb windows)")
 
 # B: pi by chromosome class
@@ -89,7 +100,7 @@ def pi_of(sp, grp):
         r = G[(G.pair == pair) & (G.group == grp)]
         if s1 == sp: return r.pi_1.iloc[0]
         if s2 == sp: return r.pi_2.iloc[0]
-ax = fig.add_subplot(gs[3:, 0:2])
+ax = fig.add_subplot(gs[NA:, 0:2])
 for j, sp in enumerate(["LEPC", "GRPC", "STGR"]):
     ys = [pi_of(sp, g) * 1e3 for g, _ in order]
     ax.plot(np.arange(3) + (j - 1) * 0.15, ys, "o", ms=4.5, color=COL[sp], mec="white", mew=0.6, label=sp, zorder=3)
@@ -99,7 +110,7 @@ ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=3,
 ax.text(-0.33, 1.03, "B", transform=ax.transAxes, fontsize=10, fontweight="bold")
 
 # C: dxy and da by chromosome class
-ax = fig.add_subplot(gs[3:, 2:4])
+ax = fig.add_subplot(gs[NA:, 2:4])
 order2 = [("macro_chr1-8", "Chr 1–8"), ("micro_chr9+", "Chr 9–37"), ("Z", "Z")]
 for j, pair in enumerate(PAIRS):
     r = [G[(G.pair == pair) & (G.group == g)].iloc[0] for g, _ in order2]
@@ -122,7 +133,7 @@ def zagg(df):
     s = df.groupby(["pair", "bin"])[C].sum().reset_index()
     s = stats(s); s["mb"] = (s.bin * BIN + BIN / 2) / 1e6; return s
 zm, za = zagg(z[z.chromosome == "chr_Z_males"]), zagg(z[z.chromosome == "chr_Z"])
-gd = gs[3:, 4:].subgridspec(4, 1, height_ratios=[1.5, 1, 1, 1], hspace=0.45)
+gd = gs[NA:, 4:].subgridspec(4, 1, height_ratios=[1.5, 1, 1, 1], hspace=0.45)
 ax1 = fig.add_subplot(gd[0])
 facets = [fig.add_subplot(gd[i + 1], sharex=ax1) for i in range(3)]
 for ax in [ax1] + facets:

@@ -1,17 +1,18 @@
 # =============================================================================
 # 11e_plot_assembly_contiguity.R
-# USFWS report Objective 3, Figure 13: contiguity of the 46 haplotype-resolved,
+# Manuscript fig. S1 (USFWS report Figure 13): contiguity of the 46 haplotype-resolved,
 # pseudo-chromosome-scale prairie grouse assemblies (QUAST, final RagTag-ordered
 # assemblies after removal of unplaced scaffolds < 50 kb).
 #
 # Three panels: number of scaffolds, total assembly length (Mb) and scaffold
 # N50 (Mb). One row per individual, grouped by species; hap1 and hap2 are
-# joined by a line. W-bearing haplotypes of the six females are drawn as open
-# symbols (they lack the ~75 Mb Z chromosome, hence shorter length and N50).
+# joined by a line. In each of the six females the Z and W assembled in the same
+# haplotype; the other haplotype lacks the ~75 Mb Z (hence its shorter length and
+# N50) and is drawn with open symbols.
 #
 # Run in RStudio (needs ggplot2; patchwork optional but recommended):
 #   install.packages(c("ggplot2", "patchwork"))
-# Outputs (working directory): FigS_assembly_contiguity.pdf / .png
+# Outputs (working directory): FigS1_assembly_contiguity.pdf / .png
 # =============================================================================
 
 library(ggplot2)
@@ -44,7 +45,8 @@ F5599 GRPC 258 369 972.9 1080.3 65.51 70.54
 F5600 GRPC 247 389 978.9 1081.7 66.15 70.95
 ")
 
-# W-bearing haplotypes of the six females (Table S3; CHD1 PCR, Figure S7)
+# haplotype of each female that lacks the Z (source haplotype names; the Z and W
+# are both in the other haplotype; table S2)
 w_hap <- c("F5503_hap1", "F5595_hap2", "F5596_hap2",
            "F5598_hap1", "F5599_hap1", "F5600_hap1")
 
@@ -66,7 +68,7 @@ long$sample <- factor(long$sample, levels = rev(ord))
 
 sp_cols <- c(LEPC = "#A52A2A", GRPC = "#DAA520", STGR = "#000000")
 
-# ---- one panel: W-bearing haplotypes drawn with open symbols ----------------
+# ---- one panel: Z-lacking female haplotypes drawn with open symbols ----------------
 long$hap_W <- ifelse(long$W, paste0(long$hap, "_W"), long$hap)
 panel <- function(var, xlab, show_y = TRUE, show_strip = FALSE) {
   ggplot(long, aes(x = .data[[var]], y = sample)) +
@@ -74,7 +76,7 @@ panel <- function(var, xlab, show_y = TRUE, show_strip = FALSE) {
     geom_point(aes(colour = species, shape = hap_W), size = 2.2, stroke = 0.9) +
     scale_shape_manual(values = c(hap1 = 16, hap2 = 17, hap1_W = 1, hap2_W = 2),
                        breaks = c("hap1", "hap2", "hap1_W"),
-                       labels = c("hap1", "hap2", "W-bearing (open)"),
+                       labels = c("hap1", "hap2", "female, no Z (open)"),
                        name = NULL) +
     scale_colour_manual(values = sp_cols, name = NULL) +
     scale_x_continuous(expand = expansion(mult = c(0.05, 0.08))) +
@@ -101,8 +103,8 @@ if (requireNamespace("patchwork", quietly = TRUE)) {
     plot_layout(guides = "collect") &
     theme(legend.position = "bottom")
   print(fig)
-  ggsave("FigS_assembly_contiguity.pdf", fig, width = 9, height = 6.5)
-  ggsave("FigS_assembly_contiguity.png", fig, width = 9, height = 6.5, dpi = 600)
+  ggsave("FigS1_assembly_contiguity.pdf", fig, width = 9, height = 6.5)
+  ggsave("FigS1_assembly_contiguity.png", fig, width = 9, height = 6.5, dpi = 600)
 } else {
   message("patchwork not installed: saving the three panels separately")
   for (p in list(A = pA, B = pB, C = pC)) print(p)
