@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Step 12b: Fig. 2A (pangenome growth and core by species; manuscript Fig. 2, formerly Fig. 3) and
-2B (repeat and gene content per haplotype), drawn from the step-12 summary tables.
-Panel A uses the autosome-only growth tables (pangenome_histgrowth_autosomes_*.tsv, from
-STAGE=panacus_autosomes of step 12) when present: in each female the Z and W assembled in one
-haplotype and the other lacks both, so whole-genome core curves mostly track the number of females.
+"""Step 12b: manuscript Fig. 2 (formerly Fig. 3), autosomes only: A, pangenome growth and core by
+species; B, autosomal repeat content; C, genes transferred to autosomes, per haplotype.
+Uses pangenome_histgrowth_autosomes_*.tsv and per_haplotype_autosomes.tsv (STAGE=autosomes of
+step 12) when present: in each female the Z and W assembled in one haplotype and the other lacks
+both, so whole-genome core, repeat and gene values mostly track sex. Falls back to whole-genome
+tables otherwise.
 usage: python3 12b_fig3_pangenome.py <dir with pangenome_histgrowth_[autosomes_]{all,GRPC,LEPC,STGR}.tsv,
                                       genome_length_by_haplotype.tsv, per_haplotype_summary.tsv> [out dir]"""
 import sys, os
@@ -45,10 +46,37 @@ h2 = [Line2D([], [], color="k", lw=1.6), Line2D([], [], color="k", lw=1.6, ls=(0
 ax.legend(h2, ["Pangenome (total)", "Core"], title="Sequence", frameon=False, loc="upper left",
           bbox_to_anchor=(1.0, 0.45), alignment="left")
 fig.tight_layout()
-fig.savefig(f"{OUT}/Fig3A_pangenome_growth.png", dpi=600)
-fig.savefig(f"{OUT}/Fig3A_pangenome_growth.pdf")
+NAME_A = "Fig2A_pangenome_growth_autosomes" if AUTO else "Fig3A_pangenome_growth"
+ax.text(-0.13, 1.02, "A", transform=ax.transAxes, fontsize=14, fontweight="bold") if AUTO else None
+fig.savefig(f"{OUT}/{NAME_A}.png", dpi=600)
+fig.savefig(f"{OUT}/{NAME_A}.pdf")
 
-# ---------------- B: repeats and genes ----------------
+# ---------------- B, C: repeats and genes ----------------
+order = ["GRPC", "LEPC", "STGR"]
+rng = np.random.default_rng(7)
+AUTO_T = f"{D}/per_haplotype_autosomes.tsv"
+if AUTO and os.path.exists(AUTO_T):
+    # autosomes only: every haplotype is comparable, so no sex coding is needed
+    pa = pd.read_csv(AUTO_T, sep="\t")
+    fig, axs = plt.subplots(1, 2, figsize=(6.5, 4.5))
+    for ax, col, lab, tag in [(axs[0], "te_pct_autosomes", "Autosomal repeats (%)", "B"),
+                              (axs[1], "genes_autosomes", "Genes transferred to autosomes", "C")]:
+        for i, sp in enumerate(order):
+            t = pa[pa.species == sp]
+            ax.plot([i - 0.3, i + 0.3], [t[col].median()] * 2, color="#555555", lw=1.6, zorder=2)
+            ax.scatter(i + rng.uniform(-0.18, 0.18, len(t)), t[col], s=34, marker="o", linewidths=0.8, zorder=3,
+                       facecolors=COL[sp], edgecolors="black" if sp != "STGR" else "#666666")
+        ax.set_xticks(range(3)); ax.set_xticklabels(order); ax.set_xlim(-0.6, 2.6)
+        ax.set_ylabel(lab)
+        ax.text(-0.22, 1.02, tag, transform=ax.transAxes, fontsize=14, fontweight="bold")
+    axs[1].yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, p: f"{v:,.0f}"))
+    fig.tight_layout()
+    fig.savefig(f"{OUT}/Fig2BC_repeat_gene_content_autosomes.png", dpi=600)
+    fig.savefig(f"{OUT}/Fig2BC_repeat_gene_content_autosomes.pdf")
+    print(pa.groupby("species")[["te_pct_autosomes", "genes_autosomes"]].describe().round(2).T)
+    sys.exit(0)
+
+# whole-genome version (sex-coded), used only when the autosome tables are absent
 gl = pd.read_csv(f"{D}/genome_length_by_haplotype.tsv", sep="\t")
 gl["chrom"] = gl.contig.str.replace(r"_p\d+$", "", regex=True)
 z = gl[gl.chrom == "chr_Z"].groupby(["sample", "haplotype"]).path_length_bp.sum()

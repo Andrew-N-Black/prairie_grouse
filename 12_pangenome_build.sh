@@ -116,7 +116,7 @@ COMPARE_DIR="${PROJECT_DIR}/comparison"
 #                   SLURM_ARRAY_TASK_ID (write it first with: bash $0 list)
 #   STAGE=summary   merge per-chromosome graphs, then genome-wide steps 4-7
 #   STAGE=te        TE annotation only (step 6); can run while the graphs build
-#   STAGE=panacus_autosomes  autosome-only growth curves for Fig. 2A (after summary)
+#   STAGE=autosomes autosome-only growth curves, repeat and gene content for Fig. 2 (after summary)
 CHROM="${CHROM:-}"
 STAGE="${STAGE:-}"
 MODE="${1:-}"
@@ -244,15 +244,21 @@ if [[ ! -x "$PANACUS_BIN" ]]; then
 fi
 
 # =============================================================================
-# STAGE=panacus_autosomes: growth curves (Fig. 2A) restricted to the autosomes.
-# The Z and W are excluded because in every female the Z and W assembled in one
-# haplotype and the other haplotype lacks both: each Z-less haplotype removes
-# the whole ~75-Mb Z from the core, so whole-genome core curves mostly track how
-# many females a species has. Keeps only P-lines whose contig is chr_<number>
-# (including _pN pieces cut in step 07/08); unplaced scaffolds are excluded too.
-#   STAGE=panacus_autosomes sbatch --export=ALL -c 32 --mem=250G -t 1-00:00:00 12_pangenome_build.sh
+# STAGE=autosomes: Fig. 2 inputs restricted to the autosomes.
+# In every female the Z and W assembled in one haplotype and the other lacks both,
+# so whole-genome core curves, repeat content and gene counts largely track the
+# sex of the bird (a Z-less haplotype drops the ~75-Mb Z and ~800 genes; W-bearing
+# haplotypes are the most repeat-rich). Autosomes = contigs named chr_<number>
+# (including _pN pieces cut in steps 07/08); Z, W and unplaced scaffolds excluded.
+#   1. panacus growth curves on autosomal paths only (all 46 haplotypes, and per species)
+#   2. per haplotype: autosomal length, interspersed-repeat % (RepeatMasker .out,
+#      merged intervals; simple repeats, low complexity, satellites and RNAs excluded,
+#      as in RepeatMasker's "Total interspersed repeats") and Liftoff genes on autosomes
+#   STAGE=autosomes sbatch --export=ALL -c 32 --mem=250G -t 1-00:00:00 12_pangenome_build.sh
+# Writes comparison/pangenome_histgrowth_autosomes_{all,GRPC,LEPC,STGR}.tsv and
+#        comparison/per_haplotype_autosomes.tsv
 # =============================================================================
-if [[ "$STAGE" == "panacus_autosomes" ]]; then
+if [[ "$STAGE" == "autosomes" ]]; then
     GFA="${PANGENOME_DIR}/merged/pangenome.final.gfa"
     [[ -s "$GFA" ]] || { echo "ERROR: ${GFA} not found (run STAGE=summary first)"; exit 1; }
     mkdir -p "$COMPARE_DIR"
@@ -270,8 +276,64 @@ if [[ "$STAGE" == "panacus_autosomes" ]]; then
     done
     rm -f "$AUTO_GFA"
     for f in "${COMPARE_DIR}"/pangenome_histgrowth_autosomes_*.tsv; do
-        echo "  $(basename "$f"): $(tail -n1 "$f" | cut -f1-3)"
+        echo "  $(basename "$f") (haplotypes, pangenome bp, core bp): $(tail -n1 "$f" | cut -f1-3)"
     done
+
+    python3 - "$COMPARE_DIR" "$FINAL_DIR" "$TE_DIR" "$MANIFEST" << 'PYEOF'
+import csv, os, re, sys
+compare_dir, final_dir, te_dir, manifest = sys.argv[1:5]
+AUTO = re.compile(r'^chr_\d+(_p\d+)?$')
+SKIP = re.compile(r'^(Simple_repeat|Low_complexity|Satellite|rRNA|tRNA|snRNA|scRNA|srpRNA|ARTEFACT)', re.I)
+with open(manifest) as fh:
+    rows = list(csv.DictReader([l for l in fh if not l.startswith('#')], delimiter='\t'))
+out = open(os.path.join(compare_dir, 'per_haplotype_autosomes.tsv'), 'w')
+out.write('species\tsample\thaplotype\tautosome_bp\tte_pct_autosomes\tgenes_autosomes\n')
+for r in rows:
+    sp, s = r['species'].strip(), r['sample_id'].strip()
+    if not s:
+        continue
+    for h in ('hap1', 'hap2'):
+        stem = f'{sp}_{s}_{h}.pseudo_chr'
+        fai = os.path.join(final_dir, stem + '.fasta.fai')
+        if not os.path.exists(fai):
+            os.system(f'samtools faidx {os.path.join(final_dir, stem + ".fasta")} 2>/dev/null')
+        L = {}
+        if os.path.exists(fai):
+            for line in open(fai):
+                f = line.split('\t')
+                if AUTO.match(f[0]):
+                    L[f[0]] = int(f[1])
+        rmout = os.path.join(te_dir, stem, stem + '.fasta.out')
+        iv = {}
+        if os.path.exists(rmout):
+            for line in open(rmout):
+                f = line.split()
+                if len(f) < 11 or not f[0].isdigit() or f[4] not in L or SKIP.match(f[10]):
+                    continue
+                iv.setdefault(f[4], []).append((int(f[5]), int(f[6])))
+        masked = 0
+        for c, xs in iv.items():
+            xs.sort(); cs, ce = xs[0]
+            for a, b in xs[1:]:
+                if a > ce + 1:
+                    masked += ce - cs + 1; cs, ce = a, b
+                else:
+                    ce = max(ce, b)
+            masked += ce - cs + 1
+        genes = 0
+        gff = os.path.join(final_dir, f'{sp}_{s}_{h}.liftoff.gff3')
+        if os.path.exists(gff):
+            for line in open(gff):
+                f = line.split('\t')
+                if len(f) > 2 and f[2] == 'gene' and AUTO.match(f[0]):
+                    genes += 1
+        tot = sum(L.values())
+        te = 100 * masked / tot if tot and iv else float('nan')
+        out.write(f'{sp}\t{s}\t{h}\t{tot}\t{te:.3f}\t{genes}\n')
+out.close()
+print('  wrote', os.path.join(compare_dir, 'per_haplotype_autosomes.tsv'))
+PYEOF
+    column -t "${COMPARE_DIR}/per_haplotype_autosomes.tsv" | head -50
     echo ">>> done $(date)"
     exit 0
 fi
