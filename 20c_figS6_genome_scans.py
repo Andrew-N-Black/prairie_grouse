@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Fig. S6 (step 20): FST, dxy and pi along the genome for each species pair.
+"""Fig. S9 (step 20; originally fig. S6): FST, dxy and pi along the genome for each species pair.
 For every pair three tracks: FST and dxy (chromosomes alternating between the colours of the two
-species compared) and pi of each of the two species (species colours; alternate chromosomes on a
-grey band). 500-kb windows summed from pixy counts; windows excluded by 20_pixy_summary.py are
+species compared) and pi of each of the two species (species colours). 500-kb windows summed from pixy counts; windows excluded by 20_pixy_summary.py are
 left out. Autosomes and Z FST/dxy use all 23 birds; Z pi uses the 17 males.
 usage: python3 20c_figS6_genome_scans.py <summary dir> [<out prefix>]
 needs <summary dir>/{windows.tsv, groups.tsv}"""
@@ -75,8 +74,6 @@ for p, pair in enumerate(PAIRS):
         for k, c in enumerate(chroms):
             if c == "chr_Z":
                 ax.axvspan(off[c] / 1e6 - 2, (off[c] + L[c] * BIN) / 1e6 + 2, color="#F3E3E3", lw=0, zorder=0)
-            elif stat == "pi" and k % 2:
-                ax.axvspan(off[c] / 1e6, (off[c] + L[c] * BIN) / 1e6, color="#EFEFEF", lw=0, zorder=0)
             dc = d[d.chromosome == c]
             if stat == "fst":
                 ax.scatter(dc.x, dc.fst, s=1.4, lw=0, color=COL[spA] if k % 2 == 0 else COL[spB], rasterized=True)
@@ -100,9 +97,6 @@ for p, pair in enumerate(PAIRS):
         else:
             ax.set_ylim(0, PI_MAX)
             ax.set_ylabel("π\n(×10$^{-3}$)", fontsize=7)
-            ax.legend([Line2D([], [], ls="", marker="o", ms=3, color=COL[s]) for s in (spA, spB)], [spA, spB],
-                      frameon=False, loc="upper left", ncol=2, fontsize=6, handletextpad=0.1,
-                      borderaxespad=0.1, columnspacing=0.8)
         ax.set_xlim(-3, x / 1e6)
         ax.tick_params(labelsize=6)
 axes[-1].set_xticks([(off[c] + L[c] * BIN / 2) / 1e6 for c in chroms if c in big])
