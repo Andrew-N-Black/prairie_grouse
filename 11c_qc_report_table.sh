@@ -1,16 +1,16 @@
 #!/bin/bash
 # =============================================================================
-# 02c_qc_report_table.sh -- collect the per-sample pangenome-input QC
+# 11c_qc_report_table.sh -- collect the per-sample pangenome-input QC
 # (Merqury QV + k-mer completeness, HiFi depth) into one table and flag
 # outliers. Runs in seconds on a login node; no modules needed.
 #
-#   bash 02c_qc_report_table.sh               # default QC_DIR below (after step 02)
-#   bash 02c_qc_report_table.sh /path/to/pangenome_qc
+#   bash 11c_qc_report_table.sh               # default QC_DIR below (after step 11)
+#   bash 11c_qc_report_table.sh /path/to/pangenome_qc
 #
 # Complements 02b (per-haplotype triage with REVIEW reasons): this adds the
 # combined hap1 + hap2 Merqury row per bird (the headline completeness/QV for
 # a diploid assembly), panel ranges, and gathers every spectra-cn plot into
-# one folder. Its table is the input to 02d_plot_qc_report.R (report Fig S8).
+# one folder. Its table is the input to 11d_plot_qc_report.R (report Fig S8).
 #
 # Reads, per sample directory <QC_DIR>/<SAMPLE>/:
 #   merqury/<SAMPLE>.qv                  asm  asm_only_kmers  total_kmers  QV  error

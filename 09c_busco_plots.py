@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # =============================================================================
-# 09_busco_plots.py — BUSCO completeness, karyotype and synteny plots
+# 09c_busco_plots.py — BUSCO completeness, karyotype and synteny plots
 #
-# Driven by 09_busco_plots.sh. Uses BUSCO-Plot-Py (buscoplotpy):
+# Driven by 09c_busco_plots.sh. Uses BUSCO-Plot-Py (buscoplotpy):
 #   https://github.com/lorenzo-arcioni/BUSCO-Plot-Py
 #
 # Reads, per assembly:
@@ -273,7 +273,7 @@ def natural_chr_key(name):
     point of drawing them.
     """
     # chr_24_p1: a piece of chr_24 split off by the misjoin fix
-    # (grouse_pangenome/scripts/chrom_qc/fix_misjoins.py); drawn right after chr_24.
+    # (08b_fix_misjoins.py); drawn right after chr_24.
     m = re.fullmatch(r"chr_(\d+)((?:_\d+)*)([a-z]*)(?:_p(\d+))?", name)
     if m:
         piece = f"~p{int(m.group(4)):03d}" if m.group(4) else ""

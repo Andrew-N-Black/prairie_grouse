@@ -18,7 +18,7 @@
 #      the self-contained version of the test and needs no reference run.
 #
 #   3. MISSING-BUSCO LOCALISATION  (needs the ptarmigan reference BUSCO run,
-#      i.e. 08_ptarmigan_reference_busco.sh)
+#      i.e. 09b_ptarmigan_reference_busco.sh)
 #      Uses the reference run to assign every ortholog to a reference
 #      chromosome, then asks where each assembly's MISSING orthologs sit. If
 #      the extra missing orthologs in the six outliers are overwhelmingly
@@ -248,7 +248,7 @@ def main():
     ref = next((a for a in assemblies if a["name"] == args.ref_name), None)
     if ref is None or not ref.get("ft"):
         print(f"    skipped: no usable BUSCO run for '{args.ref_name}' under {args.busco_dir}")
-        print("             Run 08_ptarmigan_reference_busco.sh, then rerun this script.")
+        print("             Run 09b_ptarmigan_reference_busco.sh, then rerun this script.")
     else:
         ref_chr = {bid: seq for bid, (status, seq) in ref["ft"].items()
                    if status != "Missing" and seq}

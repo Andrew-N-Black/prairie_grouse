@@ -1,3 +1,8 @@
+> **Historical notes (October 2026), written before `prairie_grouse` and `grouse_pangenome` were merged.**
+> Step numbers and paths below are the pre-merge ones: grouse_pangenome step 01 = now 07, step 03 = 12,
+> `scripts/chrom_qc/` = now `08_chrom_qc.sh`, `08_chrom_qc.py`, `08b_fix_misjoins.py`; prairie_grouse steps
+> 07/08/09 (BUSCO) = 09/09b/09c, 11 (join support) = 06. See the README's renumbering table.
+
 # After the misjoin fix: what's left to do
 
 Written 2026-10-13. State when written:

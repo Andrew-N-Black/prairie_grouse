@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Helper for 13_thex_phylogeny.sh: builds THEx (Tree House Explorer) inputs from the
+Helper for 15_thex_phylogeny.sh: builds THEx (Tree House Explorer) inputs from the
 prairie grouse haplotype assemblies. Subcommands:
 
   outgroup-ref  rock ptarmigan as the coordinate reference, renamed to the grouse chr_ names (default)

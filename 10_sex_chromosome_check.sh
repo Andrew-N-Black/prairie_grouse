@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB: IS THE HAPLOTYPE-LENGTH ASYMMETRY A MISSING Z CHROMOSOME?
-# Step 10 — requires 07_busco_array.sh. Check 3 additionally requires
-# 08_ptarmigan_reference_busco.sh; without it checks 1 and 2 still run and
+# Step 10 — requires 09_busco_array.sh. Check 3 additionally requires
+# 09b_ptarmigan_reference_busco.sh; without it checks 1 and 2 still run and
 # check 3 is skipped with a note.
 #
 # Six assemblies (F5595 hap2, F5596 hap2, F5598 hap1, F5599 hap1, F5600 hap1
@@ -69,7 +69,7 @@ BUSCO_DIR="${QC_DIR}/busco"
 OUT_DIR="${QC_DIR}/sex_chromosome_check"
 
 # Directory name of the ptarmigan reference BUSCO run, as written by
-# 08_ptarmigan_reference_busco.sh.
+# 09b_ptarmigan_reference_busco.sh.
 REF_NAME="LAGMUT_bLagMut1_ref"
 
 # An assembly is called Z-deficient when its chr_Z is below this fraction of
@@ -95,12 +95,12 @@ if [[ ! -f "$CHECK_SCRIPT" ]]; then
 fi
 if [[ ! -d "$BUSCO_DIR" ]]; then
     echo "ERROR: BUSCO output directory not found: ${BUSCO_DIR}"
-    echo "       Run 07_busco_array.sh first."
+    echo "       Run 09_busco_array.sh first."
     exit 1
 fi
 
 # The analysis is pure standard library, so any python3 will do. Prefer the
-# env built in step 09 when it exists, purely because its version is known.
+# env built in step 09c when it exists, purely because its version is known.
 PLOT_PYTHON="${PROJECT_DIR}/conda_envs/buscoplot/bin/python3"
 if [[ -x "$PLOT_PYTHON" ]]; then
     PY="$PLOT_PYTHON"

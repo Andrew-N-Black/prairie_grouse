@@ -1,25 +1,25 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB: ROCK PTARMIGAN REFERENCE AS A CONTRAST ASSEMBLY
-# Step 08 — requires
-# 03_ptarmigan_reference.sh, and is intended to run before
-# 09_busco_plots.sh.
+# Step 09b — requires
+# 02_ptarmigan_reference.sh, and is intended to run before
+# 09c_busco_plots.sh.
 #
 # NOT an array job. One genome, two steps.
 #
 # The point of this script is to make the ptarmigan reference look like just
-# another assembly, so steps 10 and 11 pick it up with no special-casing:
+# another assembly, so steps 10 and 06 pick it up with no special-casing:
 #
 #   1. Rename  — write ${FINAL_DIR}/LAGMUT_bLagMut1_ref.pseudo_chr.fasta, the
 #                ptarmigan reference with its RefSeq accessions replaced by the
 #                SAME chr_* names the grouse assemblies now carry, via the same
-#                NCBI assembly-report map step 03 built and step 05 renamed
+#                NCBI assembly-report map step 02 built and step 05 renamed
 #                against. Unplaced sequences become scaffold_N under the same
 #                minimum-length filter, so the contrast is like-for-like.
 #   2. BUSCO   — run into ${QC_DIR}/busco/LAGMUT_bLagMut1_ref/, the same tree as
 #                the ptarmigan-scaffolded grouse runs, same lineage.
 #
-# Once this finishes, run 09_busco_plots.sh and the ptarmigan appears
+# Once this finishes, run 09c_busco_plots.sh and the ptarmigan appears
 # automatically: its own completeness bar, its own karyotype plot, and a synteny
 # panel against one representative of each grouse species.
 #
@@ -37,11 +37,11 @@
 #   Note this is the reference's own karyotype, i.e. independent evidence — it
 #   does not depend on anything our pipeline did.
 #
-# The renamed FASTA also works as input to 07_busco_array.sh's
+# The renamed FASTA also works as input to 09_busco_array.sh's
 # splitting logic if you ever want the reference's chr_W/chr_Z/chr_MT pulled out.
 #
 # USAGE:
-#   sbatch 08_ptarmigan_reference_busco.sh
+#   sbatch 09b_ptarmigan_reference_busco.sh
 #
 # WHY RENAMING MATTERS: without it the ptarmigan sequences are NC_*/NW_
 # accessions while the grouse assemblies are chr_1 etc. The synteny plot joins
@@ -93,16 +93,16 @@ FINAL_DIR="${PROJECT_DIR}/final_${REF_TAG}"
 QC_DIR="${PROJECT_DIR}/qc_${REF_TAG}"
 BUSCO_DIR="${QC_DIR}/busco"
 
-# Resolved by step 03 rather than hardcoded — the assembly directory name is the
+# Resolved by step 02 rather than hardcoded — the assembly directory name is the
 # one thing about this accession that cannot be known without asking NCBI, and
 # having two scripts guess it independently is how they come to disagree.
 ASM_DIR_RECORD="${REF_DIR}/ptarmigan_asm_dir.txt"
 
 # The label the ptarmigan carries through every downstream plot. Must match
-# <SPECIES>_<SAMPLE>_<HAP> with HAP = 'ref', which is what 09_busco_plots.py
+# <SPECIES>_<SAMPLE>_<HAP> with HAP = 'ref', which is what 09c_busco_plots.py
 # accepts for an unphased reference genome.
 #
-# IMPORTANT: the middle field must contain NO underscore. 09_busco_plots.py
+# IMPORTANT: the middle field must contain NO underscore. 09c_busco_plots.py
 # parses directory names with ([A-Z]+)_([A-Za-z0-9.]+)_(hap\d+|ref), so a label
 # built straight from the NCBI assembly name (e.g. "bLagMut1_primary") would
 # fail to parse and the reference would be silently dropped from every plot.
@@ -122,7 +122,7 @@ THREADS=$SLURM_CPUS_PER_TASK
 
 mkdir -p logs "$FINAL_DIR" "$BUSCO_DIR" "$BUSCO_DOWNLOAD_PATH"
 
-# Same guarded helper as 07_busco_array.sh: on a first run the BUSCO
+# Same guarded helper as 09_busco_array.sh: on a first run the BUSCO
 # run directory does not exist, `find` exits 1, pipefail carries it through the
 # pipe, and under `set -e` a failing command substitution in an assignment kills
 # the script before BUSCO is ever called.
@@ -144,7 +144,7 @@ echo ">>> samtools : $(command -v samtools)"
 
 # =============================================================================
 # RESOLVE THE REFERENCE
-# Everything here is produced by step 03. This script deliberately does NOT
+# Everything here is produced by step 02. This script deliberately does NOT
 # re-download or rebuild any of it: if the map used to rename the grouse
 # assemblies in step 05 and the map used to rename the reference here were ever
 # built from different inputs, the chr_* names would stop meaning the same thing
@@ -152,7 +152,7 @@ echo ">>> samtools : $(command -v samtools)"
 # =============================================================================
 if [[ ! -s "$ASM_DIR_RECORD" ]]; then
     echo "ERROR: ${ASM_DIR_RECORD} not found."
-    echo "       Run 03_ptarmigan_reference.sh first."
+    echo "       Run 02_ptarmigan_reference.sh first."
     exit 1
 fi
 REF_ASM_DIR="$(head -n1 "$ASM_DIR_RECORD")"
@@ -169,21 +169,21 @@ echo ">>> Reference: ${REF_ASM_DIR}"
 
 if [[ ! -s "$SRC_FASTA" ]]; then
     echo "ERROR: ptarmigan reference FASTA not found: ${SRC_FASTA}"
-    echo "       Run 03_ptarmigan_reference.sh first."
+    echo "       Run 02_ptarmigan_reference.sh first."
     exit 1
 fi
 if [[ ! -s "$REF_CHR_MAP" ]]; then
     echo "ERROR: chromosome map not found: ${REF_CHR_MAP}"
-    echo "       Run 03_ptarmigan_reference.sh first."
+    echo "       Run 02_ptarmigan_reference.sh first."
     exit 1
 fi
 echo ">>> Chromosome map: $(wc -l < "$REF_CHR_MAP") assembled molecules"
 
-# Catch a label that step 09's parser would silently reject, before spending a
+# Catch a label that step 09c's parser would silently reject, before spending a
 # BUSCO run on a directory name that will be skipped.
 if [[ ! "$REF_LABEL" =~ ^[A-Z]+_[A-Za-z0-9.]+_ref$ ]]; then
     echo "ERROR: REF_LABEL='${REF_LABEL}' does not match <SPECIES>_<SAMPLE>_ref"
-    echo "       with SAMPLE free of underscores. 09_busco_plots.py would not"
+    echo "       with SAMPLE free of underscores. 09c_busco_plots.py would not"
     echo "       parse it and the reference would be dropped from every plot."
     exit 1
 fi
@@ -337,5 +337,5 @@ echo "  FASTA  : ${REF_FASTA}"
 echo "  BUSCO  : ${BUSCO_RUN_DIR}/"
 echo ""
 echo "  Now rerun the plots to include it:"
-echo "    sbatch 09_busco_plots.sh"
+echo "    sbatch 09c_busco_plots.sh"
 echo "============================================================"

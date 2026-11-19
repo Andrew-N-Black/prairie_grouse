@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-fix_misjoins.py - split chromosome-scale misjoins found by chrom_qc.py at the nearest
+08b_fix_misjoins.py - split chromosome-scale misjoins found by 08_chrom_qc.py at the nearest
 scaffolding gap, and relabel each piece by the anchor chromosome it aligns to.
 
 For every sequence, alignments to the anchor are collapsed into blocks along the query.
@@ -22,7 +22,7 @@ Outputs (in --outdir):
   haps.fixed.txt      haps.txt with changed haplotypes pointing to the fixed FASTA
 
 Usage:
-  python3 fix_misjoins.py --haps haps.txt --pafdir chromqc_paf --outdir fixed
+  python3 08b_fix_misjoins.py --haps haps.txt --pafdir chromqc_paf --outdir fixed
 """
 import argparse, collections, gzip, os, re, statistics, sys
 

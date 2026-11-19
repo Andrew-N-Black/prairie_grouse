@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Summarize pixy pi/dxy/fst windows (step 07) for STGR, GRPC and LEPC.
+"""Summarize pixy pi/dxy/fst windows (step 20) for STGR, GRPC and LEPC.
 
 All values are recomputed from pixy's raw counts (count_diffs / count_comparisons),
 which is pixy's recommended way to combine windows:

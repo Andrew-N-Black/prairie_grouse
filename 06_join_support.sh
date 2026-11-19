@@ -1,17 +1,17 @@
 #!/bin/bash
 # =============================================================================
 # SLURM ARRAY JOB: HI-C SUPPORT FOR EVERY RAGTAG JOIN (PTARMIGAN REFERENCE)
-# Step 11 — requires
+# Step 06 — requires
 # 05_ragtag_liftoff_array.sh to have run with DO_HIC=true, which
 # produces both the RagTag AGP and qc_ptarmigan/<sample>.<hap>.hic2final.cram.
 #
-# One array task per SAMPLE; each handles both haplotypes, matching steps 09
+# One array task per SAMPLE; each handles both haplotypes, matching steps 09c
 # and 10.
 #
-# THIS REUSES 11_join_support.py UNCHANGED — same scoring, same calibration,
+# THIS REUSES 06_join_support.py UNCHANGED — same scoring, same calibration,
 # same thresholds. That is the point: the only thing that differs between the
 # chicken run and this one is the reference that proposed the joins, so the two
-# sets of scores are directly comparable. Keep 11_join_support.py in the
+# sets of scores are directly comparable. Keep 06_join_support.py in the
 # submission directory.
 #
 # !! THE CRAM MUST BE THE PTARMIGAN ONE !!
@@ -44,7 +44,7 @@
 #   count is only meaningful against its own denominator, which the controls
 #   section of each run reports.
 #
-# HOW A JOIN IS SCORED (details in 11_join_support.py)
+# HOW A JOIN IS SCORED (details in 06_join_support.py)
 #   support = (observed - background) / (expected - background)
 #     observed   contacts between flanking windows either side of the join
 #     expected   what contiguous sequence gives at the same separations, from a
@@ -62,7 +62,7 @@
 #
 # USAGE
 #   N=$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)
-#   sbatch --array=0-$((N-1))%8 11_join_support.sh
+#   sbatch --array=0-$((N-1))%8 06_join_support.sh
 #
 # COLLATING AFTERWARDS
 #   cd $CLUSTER_SCRATCH/GROUSE/grouse_asm/qc_ptarmigan/join_support
@@ -114,7 +114,7 @@ RAGTAG_DIR="${PROJECT_DIR}/ragtag_${REF_TAG}"
 QC_DIR="${PROJECT_DIR}/qc_${REF_TAG}"
 OUT_DIR="${QC_DIR}/join_support"
 
-SCORE_SCRIPT="${SLURM_SUBMIT_DIR}/11_join_support.py"
+SCORE_SCRIPT="${SLURM_SUBMIT_DIR}/06_join_support.py"
 
 # ---- Scoring parameters -----------------------------------------------------
 # Contact-matrix bin size. 100 kb balances resolution at a join against having
@@ -142,7 +142,7 @@ mkdir -p logs "$OUT_DIR"
 # =============================================================================
 if [[ ! -f "$SCORE_SCRIPT" ]]; then
     echo "ERROR: companion script not found: ${SCORE_SCRIPT}"
-    echo "       11_join_support.py must sit next to this file."
+    echo "       06_join_support.py must sit next to this file."
     exit 1
 fi
 for BIN in samtools python3; do
@@ -152,7 +152,7 @@ for BIN in samtools python3; do
     fi
 done
 
-# numpy is the only non-stdlib dependency; reuse the env step 09 built if the
+# numpy is the only non-stdlib dependency; reuse the env step 09c built if the
 # system python3 lacks it.
 PY="$(command -v python3)"
 if ! "$PY" -c "import numpy" >/dev/null 2>&1; then
@@ -161,7 +161,7 @@ if ! "$PY" -c "import numpy" >/dev/null 2>&1; then
         PY="$CAND"
     else
         echo "ERROR: no python3 with numpy available."
-        echo "       Run 09_busco_plots.sh once to create the plotting env, or"
+        echo "       Run 09c_busco_plots.sh once to create the plotting env, or"
         echo "       load a python module that provides numpy."
         exit 1
     fi
@@ -171,7 +171,7 @@ echo ">>> samtools : $(command -v samtools)"
 
 if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
     echo "ERROR: SLURM_ARRAY_TASK_ID is not set."
-    echo "Submit with: sbatch --array=0-N 11_join_support.sh"
+    echo "Submit with: sbatch --array=0-N 06_join_support.sh"
     exit 1
 fi
 if [[ ! -f "$MANIFEST" ]]; then

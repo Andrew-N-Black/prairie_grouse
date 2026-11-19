@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB: WHAT DOES EACH PTARMIGAN CHROMOSOME CORRESPOND TO IN CHICKEN?
-# Step 04 — requires 03_ptarmigan_reference.sh for the ptarmigan reference and
+# Step 03 — requires 02_ptarmigan_reference.sh for the ptarmigan reference and
 # 01_download_chicken_reference.sh for the chicken one.
 #
 # This is the step that lets a ptarmigan chromosome number be related to the
@@ -12,7 +12,7 @@
 #   bLagMut1 is a Sanger/VGP curated assembly. Its chromosomes are named
 #   SUPER_1 ... SUPER_38, SUPER_Z, SUPER_W, and that numbering is a LENGTH
 #   RANKING, not homology to chicken — the autosome numbers run in near-perfect
-#   descending size order and step over the Z, which is the signature. Step 03
+#   descending size order and step over the Z, which is the signature. Step 02
 #   checks for this and says so.
 #
 #   So ptarmigan SUPER_6 is not chicken chr6, and renaming it chr_6 would make
@@ -45,7 +45,7 @@
 #   does the polarising.
 #
 # USAGE
-#   sbatch 04_chromosome_homology.sh
+#   sbatch 03_chromosome_homology.sh
 #
 #   Then read qc/chromosome_homology/ptarmigan_vs_chicken.summary.tsv, and if
 #   the correspondence looks sound, you may run step 05 with CHR_NAMING=homology (its
@@ -92,11 +92,11 @@ CHICKEN_ASM_DIR="GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b"
 CHICKEN_FASTA="${REF_DIR}/${CHICKEN_ASM_DIR}_genomic.fna"
 CHICKEN_CHR_MAP="${REF_DIR}/${CHICKEN_ASM_DIR}.chr_map.tsv"
 
-# The ptarmigan reference, resolved by step 03. This is the QUERY.
+# The ptarmigan reference, resolved by step 02. This is the QUERY.
 ASM_DIR_RECORD="${REF_DIR}/ptarmigan_asm_dir.txt"
 
 SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-HOMOLOGY_SCRIPT="${SCRIPT_DIR}/04_chromosome_homology.py"
+HOMOLOGY_SCRIPT="${SCRIPT_DIR}/03_chromosome_homology.py"
 
 # ---- Thresholds -------------------------------------------------------------
 # A chicken chromosome counts as "substantial" for a ptarmigan chromosome when
@@ -123,7 +123,7 @@ mkdir -p logs "$OUT_DIR"
 # =============================================================================
 if [[ ! -f "$HOMOLOGY_SCRIPT" ]]; then
     echo "ERROR: companion script not found: ${HOMOLOGY_SCRIPT}"
-    echo "       04_chromosome_homology.py must sit next to this file."
+    echo "       03_chromosome_homology.py must sit next to this file."
     exit 1
 fi
 for BIN in minimap2 samtools python3; do
@@ -135,7 +135,7 @@ done
 
 if [[ ! -s "$ASM_DIR_RECORD" ]]; then
     echo "ERROR: ${ASM_DIR_RECORD} not found."
-    echo "       Run 03_ptarmigan_reference.sh first."
+    echo "       Run 02_ptarmigan_reference.sh first."
     exit 1
 fi
 ASM_DIR="$(head -n1 "$ASM_DIR_RECORD")"
@@ -144,7 +144,7 @@ PTARMIGAN_CHR_MAP="${REF_DIR}/${ASM_DIR}.chr_map.tsv"
 
 for F in "$PTARMIGAN_FASTA" "$PTARMIGAN_CHR_MAP"; do
     if [[ ! -s "$F" ]]; then
-        echo "ERROR: missing ${F} — run 03_ptarmigan_reference.sh first."
+        echo "ERROR: missing ${F} — run 02_ptarmigan_reference.sh first."
         exit 1
     fi
 done
@@ -219,7 +219,7 @@ echo "  summary        : ${OUT_DIR}/ptarmigan_vs_chicken.summary.tsv"
 echo "  full pairs     : ${OUT_DIR}/ptarmigan_vs_chicken.correspondence.tsv"
 echo "  rename map     : ${OUT_DIR}/ptarmigan_vs_chicken.rename_map.tsv"
 echo ""
-echo "  READ THE SUMMARY BEFORE RUNNING STEP 09."
+echo "  READ THE SUMMARY BEFORE RUNNING STEP 05."
 echo "  Step 05 defaults to CHR_NAMING=native. Set CHR_NAMING=homology there to"
 echo "  above, so that chr_N means the same chromosome in both trees. Set"
 echo "  consume the rename map below instead of the reference's own"

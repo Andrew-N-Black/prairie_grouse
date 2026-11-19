@@ -6,7 +6,7 @@ Why: NCBI converts runs of N to gaps automatically only when every gap has the s
 linkage evidence. These assemblies have two kinds of 100-N gap:
   - YaHS gaps inside Hi-C scaffolds                      -> proximity-ligation
   - RagTag joins ordering scaffolds against the ptarmigan -> align-xgenus
-        (+ proximity-ligation when step 13's Hi-C test called the join "supported")
+        (+ proximity-ligation when step 06's Hi-C test called the join "supported")
 Both are exactly 100 N, so they are told apart by position.
 
 How RagTag joins are found: for every gap row in each haplotype's RagTag AGP, the
@@ -19,7 +19,7 @@ AGP coordinates no longer apply. Every other gap is a YaHS gap.
 Inputs: <sub>/files/*.fsa.gz, <sub>/rename_maps/*.tsv, <sub>/haplotype_table.tsv
         <ragtag-dir>/<sample>.<hap>/{ragtag.scaffold.agp, ragtag.scaffold.fasta,
                                      <sample>.<hap>.rename_map.tsv}
-        <joins-dir>/<SP>_<sample>_<hap>.joins.tsv   (step 13 verdicts)
+        <joins-dir>/<SP>_<sample>_<hap>.joins.tsv   (step 06 verdicts)
 Output: <out>/<sample>_hap<n>/<sample>_hap<n>.{fsa,tbl} and <out>/gap_summary.tsv
 """
 import argparse, glob, gzip, os, re, sys
@@ -68,7 +68,7 @@ def read_rmap(path):
         for line in fh:
             f = line.rstrip("\n").split("\t")
             if len(f) >= 2 and f[0] and not line.startswith("#"):
-                out[f[0]] = f[1]          # AGP object -> name given by step 06
+                out[f[0]] = f[1]          # AGP object -> name given by step 05
     return out
 
 

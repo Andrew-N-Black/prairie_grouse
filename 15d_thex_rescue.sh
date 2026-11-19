@@ -1,8 +1,8 @@
 #!/bin/bash
 # =============================================================================
-# STEP 13d: RESCUE THEx WINDOWS LOST TO ONE OR TWO MISSING HAPLOTYPES
+# STEP 15d: RESCUE THEx WINDOWS LOST TO ONE OR TWO MISSING HAPLOTYPES
 #
-# Run after 13_thex_phylogeny.sh has finished. THExBuilder drops a whole window
+# Run after 15_thex_phylogeny.sh has finished. THExBuilder drops a whole window
 # when any single sequence in it is missing: trimal deletes all-gap sequences
 # and THEx then discards windows whose sequence count differs from the rest of
 # the chromosome. So one haplotype assembly that lacks a stretch (e.g. STGR
@@ -13,18 +13,18 @@
 #   prep       prune those haplotypes (never the outgroup/reference; at most
 #              MAX_DROP per window; every species keeps >= MIN_PER_SPECIES),
 #              then thexb --trimal (sequence-count check off, since counts now
-#              differ by window) and thexb --pw_filter with step 13's settings,
-#              and merge the windows that pass into step 13's
+#              differ by window) and thexb --pw_filter with step 15's settings,
+#              and merge the windows that pass into step 15's
 #              pairwise_filtered_windows/
-#   iqtree     step 13's own iqtree stage, on the rescued windows only
-#   summarize  step 13's own summarize: rewrites work/thex_inputs/ with the
+#   iqtree     step 15's own iqtree stage, on the rescued windows only
+#   summarize  step 15's own summarize: rewrites work/thex_inputs/ with the
 #              rescued windows included (their Taxa column shows the lower count)
 #
 # Windows that already have trees are not touched, so their trees stay valid.
 # Log of what was dropped where: work/rescue/prune_log.tsv
 #
-# USAGE (Negishi, repo root):  bash 13d_thex_rescue.sh submit
-#   then re-run 13b_thex_stats.py on the new thex_inputs/ files.
+# USAGE (Negishi, repo root):  bash 15d_thex_rescue.sh submit
+#   then re-run 15b_thex_stats.py on the new thex_inputs/ files.
 # =============================================================================
 #SBATCH -A fnrdewoody
 #SBATCH -p cpu
@@ -35,9 +35,9 @@ set -euo pipefail
 unset LD_PRELOAD
 
 REPO_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
-SCRIPT="${REPO_DIR}/13d_thex_rescue.sh"
-STEP13="${REPO_DIR}/13_thex_phylogeny.sh"
-PYHELP="${REPO_DIR}/13d_thex_rescue.py"
+SCRIPT="${REPO_DIR}/15d_thex_rescue.sh"
+STEP15="${REPO_DIR}/15_thex_phylogeny.sh"
+PYHELP="${REPO_DIR}/15d_thex_rescue.py"
 
 PROJECT_DIR="${PROJECT_DIR:-${CLUSTER_SCRATCH}/GROUSE/grouse_thex}"
 WORK="${PROJECT_DIR}/work"
@@ -59,7 +59,7 @@ WIN_MIN_COV="${WIN_MIN_COV:-0.5}"        # drop a haplotype from a window if < 5
 MAX_DROP="${MAX_DROP:-4}"                # retry only if at most this many haplotypes go
 MIN_PER_SPECIES="${MIN_PER_SPECIES:-4}"  # and every species keeps at least this many
 
-# ---- same filter settings as step 13 ----
+# ---- same filter settings as step 15 ----
 TRIMAL_GT="${TRIMAL_GT:-0.9}"
 TRIMAL_MINLEN="${TRIMAL_MINLEN:-1kb}"
 PW_SUBWIN="${PW_SUBWIN:-100bp}"
@@ -75,7 +75,7 @@ log() { echo "[$(date '+%F %T')] $*"; }
 stage_prep() {
     [[ -x "${ENV_PREFIX}/bin/thexb" ]] || die "THEx env not found at ${ENV_PREFIX}"
     export PATH="${ENV_PREFIX}/bin:${PATH}"
-    [[ -s "${WORK}/ref_id.txt" ]] || die "step 13 has not run (no ${WORK}/ref_id.txt)"
+    [[ -s "${WORK}/ref_id.txt" ]] || die "step 15 has not run (no ${WORK}/ref_id.txt)"
     local REF_ID; REF_ID="$(cat "${WORK}/ref_id.txt")"
     local CPUS="${SLURM_CPUS_PER_TASK:-$RESCUE_CPUS}"
 
@@ -101,14 +101,14 @@ u=[k for k in ('kb','mb','bp') if s.endswith(k)][0]; print(int(float(s[:-2])*m[u
     if python -c "import inspect, sys, thexb.STAGE_pairwise_filter as m; sys.exit(0 if 'countmismatch + countmissing / denominator' in inspect.getsource(m) else 1)"; then
         maxp=$(python -c "print(${PW_MAX_PDIST} * ${subwin_bp})")
     fi
-    log "thexb --pw_filter (as step 13: max p-dist $maxp, z $PW_ZSCORE, coverage $PW_COV)"
+    log "thexb --pw_filter (as step 15: max p-dist $maxp, z $PW_ZSCORE, coverage $PW_COV)"
     thexb --pw_filter -i "$RESCUE" -o "$RESCUE" -r "$REF_ID" --pw_exclude "${REF_ID},${OUTGROUP_NAME}" \
         --pw_subwindow_size "$PW_SUBWIN" --pw_step "$PW_STEP" --pw_max_pdist "$maxp" \
         --pw_zscore_cutoff "$PW_ZSCORE" --pw_seq_coverage "$PW_COV" --pw_missing_char N --cpu "$CPUS"
 
     python "$PYHELP" merge --rescued-pw "${RESCUE}/pairwise_filtered_windows" \
         --pw "${THEXB_DIR}/pairwise_filtered_windows"
-    # step 13's iqtree stage reads this list; point it at the rescued windows only
+    # step 15's iqtree stage reads this list; point it at the rescued windows only
     [[ -s "${WORK}/iqtree_windows.step05.txt" ]] || cp "${WORK}/iqtree_windows.txt" "${WORK}/iqtree_windows.step05.txt"
     ( cd "$THEXB_DIR" && find pairwise_filtered_windows -name '*.fasta' ! -name '*-DROPPED*' | sort ) \
         | while read -r f; do
@@ -120,7 +120,7 @@ u=[k for k in ('kb','mb','bp') if s.endswith(k)][0]; print(int(float(s[:-2])*m[u
 
 stage_submit() {
     mkdir -p "${REPO_DIR}/logs"
-    [[ -s "$STEP13" && -s "$PYHELP" ]] || die "run from the repo root (needs 13_thex_phylogeny.sh and 13d_thex_rescue.py)"
+    [[ -s "$STEP15" && -s "$PYHELP" ]] || die "run from the repo root (needs 15_thex_phylogeny.sh and 15d_thex_rescue.py)"
     if squeue -u "${USER:-$(id -un)}" -h -o '%j' 2>/dev/null | grep -q '^thex_'; then
         die "thex_* jobs are still queued; wait for them or scancel them"
     fi
@@ -131,11 +131,11 @@ stage_submit() {
     log "rescue prep  $J1"
     J2=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q standby -t 04:00:00 --export=ALL \
         --dependency=afterok:"$J1" --array=0-$((IQ_ARRAY-1)) -N 1 -c "$IQ_CPUS" \
-        -J thex_iqtree -o "${REPO_DIR}/logs/%x_%A_%a.out" "$STEP13" iqtree) || die "iqtree submission refused"
+        -J thex_iqtree -o "${REPO_DIR}/logs/%x_%A_%a.out" "$STEP15" iqtree) || die "iqtree submission refused"
     log "iqtree       $J2 ($IQ_ARRAY tasks)"
     J3=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q standby -t 04:00:00 --export=ALL \
         --dependency=afterany:"$J2" -c 8 --mem=16G \
-        -J thex_summary -o "${REPO_DIR}/logs/%x_%j.out" "$STEP13" summarize) || die "summary submission refused"
+        -J thex_summary -o "${REPO_DIR}/logs/%x_%j.out" "$STEP15" summarize) || die "summary submission refused"
     log "summarize    $J3  -> rewrites ${WORK}/thex_inputs/"
 }
 

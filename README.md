@@ -1,7 +1,10 @@
-# Prairie Grouse Genome Assembly and QC
+# Prairie grouse: haplotype-resolved genomes, pangenome and the Z chromosome
 
-SLURM/bash pipeline (Purdue RCAC, Gautschi) for **haplotype-resolved reference
-genome assembly and quality control** of three prairie grouse species:
+SLURM/bash pipeline (Purdue RCAC; Gautschi, step 15 on Negishi) for the manuscript
+*Species boundaries in hybridizing prairie grouse are concentrated on the Z chromosome*
+(in preparation for *Science*): haplotype-resolved assemblies of 23 birds, a multi-species
+pangenome, structural variants, window phylogenies, diversity and divergence, mitogenomes
+and species-diagnostic Z markers.
 
 | Species | Code | Scientific name |
 |---|---|---|
@@ -9,264 +12,329 @@ genome assembly and quality control** of three prairie grouse species:
 | Greater Prairie-Chicken | GRPC | *T. cupido* |
 | Sharp-tailed Grouse | STGR | *T. phasianellus* |
 
-**n = 23 individuals × 2 haplotypes = 46 assemblies** (7 LEPC, 6 GRPC,
-10 STGR), all assembled from **PacBio HiFi + Hi-C only**. Step 02 still supports ONT
-ultra-long reads (`--ul`, for any manifest row whose `ont_ul` is a path rather than `NA`),
-but none are used for the final assemblies (due to low ONT yield). 
+**n = 23 birds × 2 haplotypes = 46 assemblies** (7 LEPC, 6 GRPC, 10 STGR; six females),
+PacBio HiFi + Hi-C, ordered against the **rock ptarmigan** (*Lagopus muta*, bLagMut1,
+`GCF_023343835.1`). Sequence data: NCBI BioProject PRJNA1513026. SLURM account `dewoody`
+(Gautschi), `fnrdewoody` (Negishi).
 
-Assemblies are ordered against the **rock ptarmigan** reference
-(*Lagopus muta*, bLagMut1, `GCF_023343835.1`), and annotations are transferred
-from it.
-
-This repository is the code for **Objective 3** of the USFWS report *Grouse
-genomics, October 2026* ("Haplotype-resolved reference genomes"). SLURM
-account: `dewoody` (Gautschi; `fnrdewoody` is the Negishi account). Sequence data: NCBI BioProject PRJNA1513026
-(embargoed).
-
-| Report item | Produced by |
-|---|---|
-| Assembly, scaffolding, QA/QC methods | steps 02, 05, 05b, 11 |
-| Figure S5 (contiguity: scaffolds, length, N50) | QUAST from step 05 -> `accessory_scripts/plot_assembly_contiguity.R` |
-| Figure S6 (BUSCO completeness, 46 assemblies + ptarmigan) | steps 07, 08, 09 |
-| Figures 13-14 (BUSCO karyotype and synteny; LEPC F5540, GRPC F5595, STGR F5457 hap1 + ptarmigan) | step 09 |
-| Table S3 (sex from Z/W content; with CHD1 PCR, Figure S7) | step 10 |
-| Table S4 (assembly chromosome names vs chicken GRCg7b karyotype) | steps 01 + 04 |
-| Unsupported RagTag joins (chr_2) | step 11 |
-| Mitogenomes and their QC (Appendix S1) | steps 12, 12b, 12c |
-| Figure 17C (mitogenome tree) | steps 12d (12e draws it on its own) |
-| Table 3, Figure 16 (genome-wide window phylogenies) | step 13 (+ 13b statistics, 13c/13d window recovery); runs on Negishi |
-| Figure 17 (autosomal, Z and mitogenome summary trees) | steps 13e (Negishi), 13f (local R) |
+This repository merges the former `prairie_grouse` (assembly, QC, phylogenies,
+mitogenomes, markers) and `grouse_pangenome` (pangenome, structural variants, diversity)
+repositories, with the full history of both. Steps are numbered in the order of the
+manuscript's Methods; the [old → new table](#renumbering-old--new) maps the previous
+numbers.
 
 ---
 
-## Why ptarmigan and not chicken
+## Layout
 
-Chicken (GRCg7b) is the conventional reference for galliform work, and the
-first version of this pipeline used it. It was replaced because
-reference-guided scaffolding does not merely *suggest* a chromosome structure,
-it *imposes* one — and wherever the reference and the sample karyotypes differ,
-the assembly inherits the reference's version, silently.
-
-Three karyotype differences between chicken and these birds were found by
-aligning the two references to each other (step 04) and then testing each
-proposed join against the grouse Hi-C data (step 11):
-
-- **Chicken chromosomes 6 and 8 are a single chromosome** in ptarmigan and in
-  all three *Tympanuchus* species (ptarmigan chr_5; 65.82 Mb in grouse (median) against
-  65.80 + ptarmigan 65.88, i.e. 99.9% of the length accounted for).
-- **The short arm of chicken chromosome 4 (GGA4p) is a free-standing
-  chromosome** here (ptarmigan chr_13, 19.05 Mb). Chicken carries a fusion that
-  these birds do not. The chicken-ordered assemblies were forced to reproduce
-  that fusion in 28 of 46 haplotypes, and the Hi-C contradicted it in every one.
-- **Chicken chromosome 2 corresponds to two chromosomes** (ptarmigan chr_3 and
-  chr_7; 98.0% accounted for), confirmed independently by the AGP, the contact
-  maps, and an insulation-score measurement.
-
-Ptarmigan is also simply the closer relative — *Lagopus* and *Tympanuchus* are
-both Tetraoninae, *Gallus* is Phasianinae — which shows up directly in
-annotation transfer: **a mean of 477 unmapped Liftoff features per haplotype against
-ptarmigan (about 21,900 in total) versus 95,451 against chicken**, a 4.3× reduction.
-
-### What chromosome numbers mean here
-
-bLagMut1 is a Sanger/VGP curated assembly and numbers its chromosomes
-`SUPER_1, SUPER_2, …` **in descending length order**. That is a size rank, not
-a homology statement: **ptarmigan chr_6 is not chicken chromosome 6.**
-
-The assemblies carry the ptarmigan numbering, because a name should identify a
-chromosome rather than assert a claim about a third genome. The correspondence
-to the chicken karyotype — which is what the galliform literature, gene names
-and cytogenetic results all use — is computed by **step 04** and is the thing
-to cite when relating these assemblies to published work. Never translate a
-chromosome number by assuming the numbers match.
+| Path | Contents |
+|---|---|
+| `01_` … `22_` | the numbered pipeline (below) |
+| [`shortread_panel/`](shortread_panel) | **unnumbered, not in the manuscript yet**: short-read panel mapping, graph genotyping and introgression tests, marker validation in shotgun birds, panel mitochondrial read check (see [Short-read panel](#short-read-panel-unnumbered)) |
+| [`accessory/`](accessory) | data preparation (ONT, HiFi merging, decompression), container pulls, outgroup download, the HiFi-only re-assembly of F5545/F5597 |
+| [`ncbi_submission/`](ncbi_submission) | GenBank submission of the 46 assemblies (FASTA prep, per-gap linkage evidence, `.sqn`) |
+| [`docs/`](docs) | working notes (`misjoin_fix_notes.md`, dated Oct 2026; its step numbers are the pre-merge ones) |
+| [`archive/chicken_reference_chain/`](archive/chicken_reference_chain) | the superseded chicken-guided pipeline, unchanged, for reference only |
+| `assembly_manifest.tsv` | one row per bird (see [Manifest](#manifest)) |
 
 ---
 
 ## Pipeline
 
-Run in order. Steps 01 and 03 are one-off setup; 02, 05, 07, 11 and 12 are array
-jobs over the 23 samples; the rest are single jobs. Steps 12-13 use the finished
-assemblies: 12 builds the mitogenomes and their tree, 13 builds nuclear window
-phylogenies for Tree House Explorer (THEx) and runs on **Negishi**.
+Run from the repository root. Every step reads and writes under
+`$CLUSTER_SCRATCH/GROUSE/grouse_asm` (the THEx step 15 under `grouse_thex` on Negishi).
+**Steps 16–19 are placeholders**: the analyses are in the manuscript but their code has
+not yet been added here; the numbers are reserved so that nothing is renumbered later.
+
+### A. References and assembly
 
 | Step | Script | What it does | Shape |
 |---|---|---|---|
-| 01 | [`01_download_chicken_reference.sh`](01_download_chicken_reference.sh) | Chicken GRCg7b FASTA + accession→chromosome map. Needed **only** by step 04, to tie ptarmigan chromosome numbers to the chicken karyotype. No annotation is downloaded — none is transferred from chicken. | single, 4 h |
-| 02 | [`02_assembly_scaffold_array.sh`](02_assembly_scaffold_array.sh) | **The reference-free half.** HiFiAdapterFilt → hifiasm (Hi-C-phased, `--ul` where ONT exists) → bwa mem Hi-C alignment → yahs scaffolding → Juicebox `.hic`/`.assembly` for manual curation. QUAST after hifiasm and after yahs. Also builds every conda env the later steps use. | array ×23, 48 cpu, 160 G, 10 d |
-| 03 | [`03_ptarmigan_reference.sh`](03_ptarmigan_reference.sh) | Rock ptarmigan FASTA + GFF3 + accession→chromosome map, resolving the NCBI directory name at runtime. Prints the karyotype it found and flags size-rank naming. | single, 2 h |
-| 04 | [`04_chromosome_homology.sh`](04_chromosome_homology.sh) + [`.py`](04_chromosome_homology.py) | Aligns ptarmigan to chicken (`minimap2 -x asm20`) and works out which chicken chromosome each ptarmigan chromosome corresponds to. **This is where the karyotype findings above come from.** Writes the correspondence table, the summary, and a rename map. | single, 24 cpu, 8 h |
-| 05 | [`05_ragtag_liftoff_array.sh`](05_ragtag_liftoff_array.sh) | **The reference-guided half.** RagTag ordering → chromosome naming → QUAST → Liftoff → orientation dot plot → Hi-C realignment + Pretext contact map → tidk → HiFi depth check. Reads step 02's yahs scaffolds; never writes to them. | array ×23, 24 cpu, 96 G, 3 d |
-| 05b | [`05b_relabel_male_W.sh`](05b_relabel_male_W.sh) | Males (ZZ) have no W: anything RagTag placed on ptarmigan chr_W in a male haplotype is renamed `scaffold_N` (>= 50 kb) or moved to `unplaced_short` (< 50 kb), with the GFF3 updated and a log written. The six ZW females are never touched. | login node, minutes |
-| 06 | [`06_rename_chromosomes.sh`](06_rename_chromosomes.sh) + [`.py`](06_rename_chromosomes.py) | Renames chromosomes consistently across every derived file (FASTA, GFF3, AGP, CRAM, BUSCO tables). **Only needed if step 05 ran with `CHR_NAMING=homology`** — its default produces the final names directly. | single, 4 h |
-| 07 | [`07_busco_array.sh`](07_busco_array.sh) | Splits chr_Z / chr_W / chr_MT into their own FASTAs, then BUSCO v5.4.7 genome mode (metaeuk) against `aves_odb10` (8,338 orthologs) on the full assembly. | array ×23, 24 cpu, 2 d |
-| 08 | [`08_ptarmigan_reference_busco.sh`](08_ptarmigan_reference_busco.sh) | Runs the ptarmigan reference through the identical BUSCO treatment, so it can be drawn alongside the grouse and so every ortholog gets a reference chromosome. Required by step 10's third check. | single, 24 cpu, 1 d |
-| 09 | [`09_busco_plots.sh`](09_busco_plots.sh) + [`.py`](09_busco_plots.py) | BUSCO-Plot-Py figures: per-species completeness barplots, karyoplots, and pairwise horizontal synteny plots. | single, 8 cpu, 4 h |
-| 10 | [`10_sex_chromosome_check.sh`](10_sex_chromosome_check.sh) + [`.py`](10_sex_chromosome_check.py) | Tests whether the short, low-BUSCO haplotypes are short because they lack the Z. Three independent checks: chromosome content, BUSCOs on chr_Z, and where the *missing* orthologs sit on the reference. | single, 30 min |
-| 11 | [`11_join_support.sh`](11_join_support.sh) + [`.py`](11_join_support.py) | Scores **every join RagTag made** against the Hi-C: observed cross-join contacts versus what contiguous sequence would carry at the same separation, calibrated per library on pseudo-joins inside intact scaffolds. This is what catches a reference imposing a join the data does not support. | array ×23, 8 cpu, 8 h |
-| 12 | [`12_mitohifi_array.sh`](12_mitohifi_array.sh) | One circularised, rotated, annotated mitogenome per bird from the HiFi reads (MitoHiFi v3, NUMT-bearing long reads filtered out), replacing the 20-50 kb hifiasm chr_MT concatemers. `setup` fetches the reference mitogenome. | array ×23, 32 cpu, 1 d |
-| 12b | [`12b_mito_from_hic.sh`](12b_mito_from_hic.sh) | Mitogenome as a Hi-C read consensus for birds whose HiFi reads are dominated by NUMTs (STGR F5485, F5502). | array (2 rows), 16 cpu, 4 h |
-| 12c | [`12c_mito_qc.sh`](12c_mito_qc.sh) | QC table (length, gene content, rotation, identity/coverage vs reference, read depth), `trim`/`rescue` fixes, pairwise identities, and `collect` of the PASS mitogenomes. | login node |
-| 12d | [`12d_mito_tree.sh`](12d_mito_tree.sh) | MAFFT FFT-NS-i alignment of the 23 mitogenomes + GRPC reference + rock ptarmigan outgroup, IQ-TREE 3 (ModelFinder, 1,000 UFBoot), rooted on ptarmigan. | login node / short job |
-| 12e | [`12e_plot_mito_tree_ggtree.R`](12e_plot_mito_tree_ggtree.R) | Stand-alone mitogenome tree from 12d (ggtree); in the report it is panel C of Figure 17 (13f). | local R |
-| 12f | [`12f_mito_read_check.sh`](12f_mito_read_check.sh) | Which mitochondrial lineage a panel bird's own reads carry: LEPC vs GRPC/STGR allele counts at LEPC-diagnostic sites (from the 23 checked mitogenomes), using unmapped reads from its CRAM mapped to MW574394.1. Checks mitogenomes assembled elsewhere for mix-ups or contamination. | login node / short job |
-| 13 | [`13_thex_phylogeny.sh`](13_thex_phylogeny.sh) + [`.py`](13_thex_phylogeny.py) | **Negishi.** Copies the assemblies from Gautschi, projects every haplotype onto the ptarmigan reference (minimap2), builds one alignment per chromosome, then THExBuilder 100-kb windows → trimAl → pairwise filter → IQ-TREE 2 per window, and writes the THEx Tree Viewer file (trees rooted on ptarmigan; `TopologyID` = species-level relationship), gene track and chromosome-length BED. | array → node → array → small job |
-| 13b | [`13b_thex_stats.py`](13b_thex_stats.py) | Statistics for Table 3 / Figure 16 with chromosomes as the unit of replication: Z vs autosome rank, Spearman vs chromosome length and gene density, window-level logistic GEE clustered by chromosome. | local, THEx env |
-| 13c | [`13c_window_diagnostics.py`](13c_window_diagnostics.py) | Why a region has no trees: per-window reference N/repeat/GC, haplotype coverage, genes and filter fate. | login node |
-| 13d | [`13d_thex_rescue.sh`](13d_thex_rescue.sh) + [`.py`](13d_thex_rescue.py) | Re-runs windows lost because one to four haplotypes lack that stretch, without those haplotypes, then reruns step 13's IQ-TREE and summary stages. | node → array → small job |
-| 13e | [`13e_summary_trees.sh`](13e_summary_trees.sh) | One summary tree for the autosomes and one for the Z from the step-13 window trees: wASTRAL (weighted by UFBoot and branch length) at haplotype and species level, plus gene concordance factors (IQ-TREE `--gcf`, % of window trees containing each branch). | `setup` once, then one standby job |
-| 13f | [`13f_plot_summary_trees.R`](13f_plot_summary_trees.R) | Figure 17: autosomal and Z summary trees (gCF on nodes) beside the 12d mitogenome tree (ggtree + patchwork). | local R |
-| 14 | [`14_z_markers.sh`](14_z_markers.sh) + [`.py`](14_z_markers.py) | **Species-diagnostic Z markers.** Finds Z sites that separate species in the 46 assemblies (aligned to the LEPC reference Z; minimap2 + paftools call), checks each ~300-bp window (single copy, no W gametolog match, repeats), designs primers (Primer3), then confirms allele frequencies in the 506-bird panel by species x context (ANGSD, groups in [`panel_groups.tsv`](panel_groups.tsv)). | array -> node -> array -> small job |
+| 01 | [`01_download_chicken_reference.sh`](01_download_chicken_reference.sh) | Chicken GRCg7b FASTA + accession→chromosome map, used **only** by step 03 to relate ptarmigan chromosomes to the chicken karyotype. | single, 4 h |
+| 02 | [`02_ptarmigan_reference.sh`](02_ptarmigan_reference.sh) | Rock ptarmigan FASTA + GFF3 + accession→chromosome map (NCBI directory resolved at runtime); prints the karyotype and flags size-rank naming. | single, 2 h |
+| 03 | [`03_chromosome_homology.sh`](03_chromosome_homology.sh) + [`.py`](03_chromosome_homology.py) | Ptarmigan → chicken alignment (`minimap2 -x asm20`); which chicken chromosome each ptarmigan chromosome corresponds to (table S3). | single, 24 cpu, 8 h |
+| 04 | [`04_assembly_scaffold_array.sh`](04_assembly_scaffold_array.sh) | **Reference-free half.** HiFiAdapterFilt → hifiasm (Hi-C phasing; v0.19.9-r616) → bwa mem Hi-C → YaHS → Juicebox files; QUAST after hifiasm and YaHS. Builds the conda envs later steps use. | array ×23, 48 cpu, 160 G, 10 d |
+| 05 | [`05_ragtag_liftoff_array.sh`](05_ragtag_liftoff_array.sh) | **Reference-guided half.** RagTag ordering on ptarmigan → chromosome naming → QUAST → Liftoff → dot plot → Hi-C realignment + Pretext map → tidk → HiFi depth. Never writes to step 04's output. | array ×23, 24 cpu, 96 G, 3 d |
+| 05b | [`05b_relabel_male_W.sh`](05b_relabel_male_W.sh) | Males (ZZ) have no W: sequence RagTag placed on ptarmigan chr_W in a male haplotype becomes `scaffold_N` (≥ 50 kb) or `unplaced_short`. Females untouched. | login node |
+| 05c | [`05c_rename_chromosomes.sh`](05c_rename_chromosomes.sh) + [`.py`](05c_rename_chromosomes.py) | *Optional.* Renames chromosomes across every derived file; only needed if step 05 ran with `CHR_NAMING=homology`. | single, 4 h |
+| 06 | [`06_join_support.sh`](06_join_support.sh) + [`.py`](06_join_support.py) | Scores **every RagTag join** against the bird's own Hi-C (cross-join contacts vs. contiguous sequence at the same separation, calibrated per library): supported / unsupported / ambiguous / not scored. | array ×23, 8 cpu, 8 h |
+| 07 | [`07_break_unsupported_joins.sh`](07_break_unsupported_joins.sh) + [`.py`](07_break_unsupported_joins.py) | Cuts every join step 06 called `unsupported` (989 cuts) and writes the pangenome-input FASTAs (`pangenome_inputs/`), after proving AGP coordinates still match. | single, < 1 h |
+| 08 | [`08_chrom_qc.sh`](08_chrom_qc.sh) + [`.py`](08_chrom_qc.py), [`08b_fix_misjoins.py`](08b_fix_misjoins.py) | Chromosome-scale misjoin screen: every haplotype aligned to an anchor assembly (GRPC F5595; `minimap2 -x asm10`), blocks ≥ 500 kb by anchor chromosome; 08b cuts misjoins at the nearest scaffold gap (24 cuts) and relabels the pieces. Notes: [`docs/misjoin_fix_notes.md`](docs/misjoin_fix_notes.md). | array + login node |
+
+### B. Assembly quality and sex chromosomes
+
+| Step | Script | What it does | Shape |
+|---|---|---|---|
+| 09 | [`09_busco_array.sh`](09_busco_array.sh) | Splits chr_Z / chr_W / chr_MT into their own FASTAs; BUSCO v5.4.7 (`aves_odb10`, 8,338 orthologs) on each assembly. | array ×23, 24 cpu, 2 d |
+| 09b | [`09b_ptarmigan_reference_busco.sh`](09b_ptarmigan_reference_busco.sh) | The ptarmigan reference through the identical BUSCO run. | single, 1 d |
+| 09c | [`09c_busco_plots.sh`](09c_busco_plots.sh) + [`.py`](09c_busco_plots.py) | BUSCO-Plot-Py completeness barplots, karyoplots and synteny (**Fig. 2**). | single, 4 h |
+| 10 | [`10_sex_chromosome_check.sh`](10_sex_chromosome_check.sh) + [`.py`](10_sex_chromosome_check.py) | Z/W content per haplotype from chromosome content, Z BUSCOs and where missing orthologs sit (**table S2**; genomic sex, confirmed by CHD1 PCR, fig. S2). | single, 30 min |
+| 11 | [`11_assembly_qc_array.sh`](11_assembly_qc_array.sh) | Merqury (k = 21: QV, completeness, spectra-cn) and HiFi depth (hap1 + hap2 together; windows < 0.5× or > 1.5× the median flagged) on the step-07 FASTAs; optional FCS-adaptor. | array ×23 |
+| 11b–e | [`11b_collate_qc.sh`](11b_collate_qc.sh), [`11c_qc_report_table.sh`](11c_qc_report_table.sh), [`11d_plot_qc_report.R`](11d_plot_qc_report.R), [`11e_plot_assembly_contiguity.R`](11e_plot_assembly_contiguity.R) | One QC table with REVIEW flags; report table (per haplotype and hap1+hap2); **fig. S1** (completeness, QV, depth); contiguity figure from QUAST. | login node / local R |
+
+### C. Pangenome and structural variants
+
+| Step | Script | What it does | Shape |
+|---|---|---|---|
+| 12 | [`12_pangenome_build.sh`](12_pangenome_build.sh) | PanSN renaming; PGGB graph per chromosome (seqwish v0.7.9 from `pggb.sif`), merged with `odgi squeeze`; odgi stats and path lengths; panacus growth/core by species; RepeatModeler per species → RepeatMasker on all 46; per-haplotype and per-species genome, gene and TE tables (**table S4**). | array per chromosome + summary |
+| 12b | [`12b_fig3_pangenome.py`](12b_fig3_pangenome.py) | **Fig. 3A** (pangenome growth and core) and **3B** (repeat and gene content) from step 12's `comparison/` tables. | local |
+| 13 | [`13_structural_variants.sh`](13_structural_variants.sh) + [`13_sv_summary.py`](13_sv_summary.py) | `vg deconstruct` (v1.59) per chromosome against one reference path (longest single-sequence LEPC haplotype; STGR for chr_W), `vcfbub -l 0 -a 100000`, `vcfwave -I 1000`; SVs ≥ 50 bp typed INS/DEL/INV/COMPLEX; species-diagnostic SVs and fixed differences (all haplotypes and subsampled to six); Z vs autosomes (Fisher's exact test, density) (**table S8**). | array per chromosome, 96 cpu; summary |
+| 14 | [`14_z_inversions.sh`](14_z_inversions.sh) + [`.py`](14_z_inversions.py) | Large Z inversions: every Z path (`odgi paths -f`) aligned to the step-13 reference Z (`minimap2 -x asm10`); inverted blocks ≥ 50 kb clustered into events, classified, flagged near gaps/path ends; optional liftover to ptarmigan Z coordinates (needed by step 20b). | single, 32 cpu, < 1 h |
+
+### D. Phylogenies, population structure, coding sequence and diversity
+
+| Step | Script | What it does | Shape |
+|---|---|---|---|
+| 15 | [`15_thex_phylogeny.sh`](15_thex_phylogeny.sh) + [`.py`](15_thex_phylogeny.py) | **Negishi.** Every haplotype projected onto ptarmigan (`minimap2 -x asm20`), one alignment per chromosome, THExBuilder 100-kb windows → trimAl → pairwise filter → IQ-TREE 2 per window; Tree Viewer file with species-level `TopologyID` (**Fig. 4**, **Table 1**). | array → node → array → small job |
+| 15b | [`15b_thex_stats.py`](15b_thex_stats.py) | Table 1 / Fig. 4 statistics: Z vs autosome rank, Spearman vs chromosome length and gene density (Fig. 4C), window-level GEE. | local |
+| 15c | [`15c_window_diagnostics.py`](15c_window_diagnostics.py) | Why a region has no trees: per-window N/repeat/GC, haplotype coverage, filter fate. | login node |
+| 15d | [`15d_thex_rescue.sh`](15d_thex_rescue.sh) + [`.py`](15d_thex_rescue.py) | Re-runs windows lost because 1–4 haplotypes lack that stretch, without those haplotypes. | node → array → small job |
+| 15e | [`15e_summary_trees.sh`](15e_summary_trees.sh) | Weighted ASTRAL summary trees (autosomes, Z) + gene concordance factors. | standby job |
+| 15f | [`15f_plot_summary_trees.R`](15f_plot_summary_trees.R) | **Fig. 6**: autosomal and Z summary trees beside the step-21d mitogenome tree. | local R |
+| 16 | *placeholder — code to be added* | **SNP calling from HiFi reads**: pbmm2 (HiFi preset) to the ptarmigan reference, DeepVariant v1.10.0 (PACBIO model) per bird, GLnexus joint genotyping, filters. | |
+| 17 | *placeholder — code to be added* | **Population structure**: PLINK PCA of LD-pruned SNPs (autosomes, 23 birds; Z, 17 males) and ADMIXTURE K = 2–6 with cross-validation (**Fig. 5A–D**, **fig. S3**). | |
+| 18 | *placeholder — code to be added* | **Sliding-window PCA and diagnostic regions**: WinPCA v1.2 (100-kb windows, 10-kb step), diagnostic score D(w), top-1% windows merged into regions (**Fig. 5E–H**, **fig. S4**, **Table 2**, **table S5**). | |
+| 19 | *placeholder — code to be added* | **Coding-sequence divergence and polymorphism**: CDS of all Z genes and 2,000 autosomal genes from each haplotype's Liftoff annotation; Nei–Gojobori dN/dS, πN/πS, fixed differences, McDonald–Kreitman tests; 41–44-Mb segment vs. blocks of consecutive Z genes (**Table 3**, **tables S6–S7**, **fig. S5**). | |
+| 20 | [`20_pixy_divergence.sh`](20_pixy_divergence.sh) + [`20_pixy_summary.py`](20_pixy_summary.py) | π, d<sub>XY</sub>, d<sub>a</sub> and Hudson's F<sub>ST</sub>: each bird's HiFi reads mapped (`minimap2 -x map-hifi`) to the step-13 reference paths (STGR W as a decoy); all-sites calling with bcftools in 5-Mb chunks; pixy 50-kb windows (Z also males only). Summary excludes windows with < 5,000 sites or π/d<sub>XY</sub> > 0.02, Z/autosome ratios with 1-Mb block-bootstrap CIs, π vs the neutral ZW range 0.5625–0.75 (**table S9**). | samples → ref → map (array per bird) → call (array per chunk) → summary |
+| 20b | [`20b_fig7_diversity_divergence.py`](20b_fig7_diversity_divergence.py) | **Fig. 7** (F<sub>ST</sub> genome scan; π and divergence by chromosome class; the Z in ptarmigan coordinates with the 41–44-Mb segment). Run by step 20's summary stage when step 14's `ref_to_ptarmigan.paf` exists. | local or summary job |
+
+### E. Mitogenomes and Z markers
+
+| Step | Script | What it does | Shape |
+|---|---|---|---|
+| 21 | [`21_mitohifi_array.sh`](21_mitohifi_array.sh) | One circularized, annotated mitogenome per bird from HiFi reads (MitoHiFi v3; NUMT-bearing long reads removed). `setup` fetches the reference mitogenome. | array ×23, 32 cpu, 1 d |
+| 21b | [`21b_mito_from_hic.sh`](21b_mito_from_hic.sh) | Mitogenome as a Hi-C read consensus for birds whose HiFi reads are dominated by NUMTs (STGR F5485, F5502). | array (2 rows) |
+| 21c | [`21c_mito_qc.sh`](21c_mito_qc.sh) | QC table, `trim`/`rescue` fixes, pairwise identities, `collect` of the passing mitogenomes. | login node |
+| 21d | [`21d_mito_tree.sh`](21d_mito_tree.sh) | MAFFT alignment of the 23 mitogenomes + GRPC reference + ptarmigan outgroup; IQ-TREE 3 (ModelFinder, 1,000 UFBoot) (**Fig. 6C**). | short job |
+| 21e | [`21e_plot_mito_tree_ggtree.R`](21e_plot_mito_tree_ggtree.R) | Stand-alone mitogenome tree (ggtree). | local R |
+| 22 | [`22_z_markers.sh`](22_z_markers.sh) + [`.py`](22_z_markers.py) | **Species-diagnostic Z SNPs** in the 40 Z-bearing haplotypes (aligned to the LEPC reference Z; minimap2 + paftools), single-copy and W-gametolog checks, Primer3 primers (80–200-bp products). Its `submit-panel`, `submit-zbam` and `submit-assign` stages use the short-read panel (ANGSD; [`shortread_panel/panel_groups.tsv`](shortread_panel/panel_groups.tsv)) and are not part of the manuscript. | array → node → array → small job |
+| 22b | [`22b_z_indel_markers.sh`](22b_z_indel_markers.sh) + [`.py`](22b_z_indel_markers.py) | **Gel-scorable Z indel markers**: species-diagnostic length differences in the Z-bearing haplotypes, Primer3, in-silico PCR on every Z, the female W and the whole LEPC reference. | single, 16 cpu, 4 h |
 
 ### Submitting
 
 ```bash
 N=$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)   # 23
 
+# A. references and assembly
 bash   01_download_chicken_reference.sh
-bash   03_ptarmigan_reference.sh
-sbatch 04_chromosome_homology.sh
+bash   02_ptarmigan_reference.sh
+sbatch 03_chromosome_homology.sh
+sbatch --array=0-$((N-1))%6 04_assembly_scaffold_array.sh          # ~10 d per bird
+sbatch --array=0-$((N-1))%6 05_ragtag_liftoff_array.sh             # after 04
+bash   05b_relabel_male_W.sh
+sbatch --array=0-$((N-1))%8 06_join_support.sh                     # needs 05 with DO_HIC=true
+DRY_RUN=true bash 07_break_unsupported_joins.sh && sbatch 07_break_unsupported_joins.sh
+#   08: see docs/misjoin_fix_notes.md (map array, summarize, 08b_fix_misjoins.py)
 
-sbatch --array=0-$((N-1))%6 02_assembly_scaffold_array.sh
-# ... then, once every sample has finished:
-sbatch --array=0-$((N-1))%6 05_ragtag_liftoff_array.sh
+# B. quality and sex chromosomes
+sbatch --array=0-$((N-1))%8 09_busco_array.sh
+sbatch 09b_ptarmigan_reference_busco.sh
+sbatch 09c_busco_plots.sh && sbatch 10_sex_chromosome_check.sh
+sbatch --array=0-$((N-1))%6 11_assembly_qc_array.sh
+bash 11b_collate_qc.sh && bash 11c_qc_report_table.sh                # then 11d / 11e locally
 
-bash   05b_relabel_male_W.sh                    # after 05 (and 06, if used)
-sbatch --array=0-$((N-1))%8 07_busco_array.sh
-sbatch 08_ptarmigan_reference_busco.sh
-sbatch 09_busco_plots.sh                       # after 07 and 08
-sbatch 10_sex_chromosome_check.sh              # after 07 and 08
-sbatch --array=0-$((N-1))%8 11_join_support.sh  # needs 05 with DO_HIC=true
+# C. pangenome and structural variants
+bash accessory/pull_containers.sh                                   # once: pggb, vg, RepeatMasker images
+bash 12_pangenome_build.sh list                                     # prints the per-chromosome array command
+STAGE=summary sbatch --export=ALL -t 4-00:00:00 12_pangenome_build.sh
+bash 13_structural_variants.sh submit
+export PATH=/home/blackan/.conda/envs/zindel/bin:$PATH              # minimap2 for step 14
+PTARMIGAN_FA=<ptarmigan.fna> sbatch --export=ALL 14_z_inversions.sh
 
-# mitogenomes (Gautschi)
-bash   12_mitohifi_array.sh setup               # once, login node
-sbatch --array=0-$((N-1))%8 12_mitohifi_array.sh
-sbatch -q standby -t 04:00:00 --array=7,8 12b_mito_from_hic.sh   # STGR F5485, F5502
-bash   12c_mito_qc.sh qc && bash 12c_mito_qc.sh collect
-bash   12d_mito_tree.sh                           # mitogenome tree; drawn as Figure 17C by 13f
+# D. phylogenies (Negishi) and diversity
+bash 15_thex_phylogeny.sh transfer && bash 15_thex_phylogeny.sh setup && bash 15_thex_phylogeny.sh submit
+bash 15d_thex_rescue.sh submit                                      # optional
+bash 15e_summary_trees.sh setup && bash 15e_summary_trees.sh submit
+bash 20_pixy_divergence.sh samples                                  # check samples.tsv
+sbatch --export=ALL,STAGE=ref 20_pixy_divergence.sh
+bash 20_pixy_divergence.sh map && bash 20_pixy_divergence.sh call  # summary + Fig. 7 run afterwards
 
-# window phylogenies (Negishi, from a clone of this repo)
-bash 13_thex_phylogeny.sh transfer               # assemblies + ptarmigan from Gautschi
-bash 13_thex_phylogeny.sh setup                  # THEx conda env on scratch
-bash 13_thex_phylogeny.sh submit                 # project -> prep -> iqtree -> summarize
-bash 13d_thex_rescue.sh submit                   # optional: recover windows missing 1-4 haplotypes
-bash 13e_summary_trees.sh setup && bash 13e_summary_trees.sh submit   # autosome + Z summary trees
-Rscript 13f_plot_summary_trees.R autosomes.gcf.cf.tree chrZ.gcf.cf.tree mito_tree.contree   # local, Figure 17
-python 13b_thex_stats.py grouse_TreeViewer_input.xlsx chromosome_lengths.bed grouse_thex_stats
-
-# species-diagnostic Z markers (Gautschi)
-bash 14_z_markers.sh setup && bash 14_z_markers.sh submit
+# E. mitogenomes and markers
+bash 21_mitohifi_array.sh setup && sbatch --array=0-$((N-1))%8 21_mitohifi_array.sh
+sbatch -q standby -t 04:00:00 --array=7,8 21b_mito_from_hic.sh
+bash 21c_mito_qc.sh qc && bash 21c_mito_qc.sh collect && bash 21d_mito_tree.sh
+bash 22_z_markers.sh setup && bash 22_z_markers.sh submit
+mkdir -p logs && sbatch 22b_z_indel_markers.sh
 ```
 
-Steps 01, 03 and 04 are independent of 02 and can run while the assemblies are
-building. 02 is the long pole — budget ten days per sample.
+Step 05's stages can be switched individually (`DO_LIFTOFF`, `DO_QUAST`, `DO_HIC`,
+`DO_DOTPLOT`, `DO_TIDK`, `DO_DEPTH`, `CHR_NAMING`), e.g. a fast structural pass first:
+`sbatch --export=ALL,DO_HIC=false,DO_DEPTH=false --array=0-22%6 05_ragtag_liftoff_array.sh`.
+`DO_HIC=true` is required before step 06.
 
-### Stage toggles
+---
 
-Step 05's stages are individually switchable without editing the file, which is
-the convenient way to do a fast structural pass first and add the expensive
-stages later:
+## Manuscript items and the steps that produce them
 
-```bash
-sbatch --export=ALL,DO_HIC=false,DO_DEPTH=false --array=0-22%6 05_ragtag_liftoff_array.sh
-```
+| Manuscript | Steps |
+|---|---|
+| Assembly, scaffolding, QC (Methods) | 04, 05, 05b, 06, 08, 09, 11 |
+| Fig. 1 (sampling, assemblies), table S1 | 05 (QUAST), 09, 11 |
+| Fig. 2 (karyotype, synteny); table S3 | 09c; 03 |
+| Table S2, fig. S2 (sex chromosomes) | 10 (+ CHD1 PCR) |
+| Fig. S1 (Merqury, depth) | 11–11d |
+| Fig. 3, table S4 (pangenome) | 12, 12b |
+| Table S8 (structural variants); Z inversions | 13; 14 |
+| Fig. 4, Table 1 (window trees) | 15, 15b–15d |
+| Fig. 5, Table 2, figs. S3–S4, table S5 (SNPs, PCA, ADMIXTURE, WinPCA) | 16–18 *(code to be added)* |
+| Table 3, tables S6–S7, fig. S5 (coding sequence) | 19 *(code to be added)* |
+| Fig. 6 (summary and mitogenome trees) | 15e, 15f, 21d |
+| Fig. 7, table S9 (π, d<sub>XY</sub>, F<sub>ST</sub>) | 20, 20b (+ 14 for ptarmigan coordinates) |
+| Mitogenomes | 21–21e |
+| Candidate Z-linked markers | 22, 22b |
+| GenBank submission | `ncbi_submission/` |
 
-`DO_LIFTOFF`, `DO_QUAST`, `DO_HIC`, `DO_DOTPLOT`, `DO_TIDK`, `DO_DEPTH` and
-`CHR_NAMING` all work this way. `DO_HIC` and `DO_DEPTH` are each a full pass
-over a sequencing library and together account for most of the walltime;
-`DO_HIC=true` is required before step 11.
+---
+
+## Short-read panel (unnumbered)
+
+[`shortread_panel/`](shortread_panel) holds the analyses that use population short-read
+data rather than the 23 assemblies. They are kept but **not numbered**, because they may
+or may not be part of this manuscript: introgression across the LEPC–GRPC hybrid zone
+cannot be tested without high-depth LEPC from the zone, and those birds cannot be sampled
+and sequenced until spring 2027.
+
+| Script | What it does |
+|---|---|
+| [`shortread_introgression.sh`](shortread_panel/shortread_introgression.sh) + [`shortread_manifest.tsv`](shortread_panel/shortread_manifest.tsv) | Graph GBZ + giraffe indexes, `vg giraffe` → `vg pack` → `vg call` per sample, joint VCF, Dsuite `Dtrios` (genome-wide D) and `Dinvestigate` (windowed D/f<sub>d</sub>). Needs at least one `Outgroup` row (Gunnison sage-grouse, `accessory/download_outgroup.sh`); Dsuite's untreed mode infers the trio from BBAA. Run from the repo root. |
+| [`validate_indel_markers.sh`](shortread_panel/validate_indel_markers.sh) + [`.py`](shortread_panel/validate_indel_markers.py) | Genotypes the step-22b indel markers in higher-coverage shotgun birds and checks the alleles against ptarmigan, chicken and the grouse W. |
+| [`validate_snp_markers.sh`](shortread_panel/validate_snp_markers.sh) + [`.py`](shortread_panel/validate_snp_markers.py) | The same for the step-22 SNP markers; per-bird Z ancestry. |
+| [`mito_read_check.sh`](shortread_panel/mito_read_check.sh) | Which mitochondrial lineage a panel bird's reads carry, at LEPC-diagnostic sites. |
+| [`panel_groups.tsv`](shortread_panel/panel_groups.tsv) | Panel birds by species × context, used by step 22's panel stages. |
+
+---
+
+## Why ptarmigan and not chicken
+
+Reference-guided scaffolding imposes the reference's chromosome structure wherever the
+karyotypes differ. Aligning chicken and ptarmigan (step 03) and testing each join against
+the grouse Hi-C (step 06) found three differences:
+
+- **Chicken chromosomes 6 and 8 are one chromosome** in ptarmigan and all three
+  *Tympanuchus* (ptarmigan chr_5; 65.82 Mb median in grouse).
+- **The short arm of chicken chromosome 4 (GGA4p) is a free-standing chromosome** here
+  (ptarmigan chr_13, 19.05 Mb). Chicken-ordered assemblies reproduced the fusion in 28 of
+  46 haplotypes and the Hi-C contradicted it in every one.
+- **Chicken chromosome 2 corresponds to two chromosomes** (ptarmigan chr_3 and chr_7).
+
+Ptarmigan is also the closer relative (both Tetraoninae): a mean of 477 unmapped Liftoff
+features per haplotype against ptarmigan versus 95,451 in total against chicken.
+
+**Chromosome numbers are size ranks, not homology.** bLagMut1 numbers chromosomes in
+descending length, so ptarmigan chr_6 is not chicken chromosome 6. The assemblies carry
+the ptarmigan numbers; relate them to the galliform literature through step 03's
+correspondence table (table S3), never by assuming the numbers match.
 
 ---
 
 ## Output layout
 
-Everything lives under `$CLUSTER_SCRATCH/GROUSE/grouse_asm`:
+Under `$CLUSTER_SCRATCH/GROUSE/grouse_asm`:
 
 ```
-ref/                          both references, their indexes and chromosome maps
-conda_envs/                   every tool env, built once by 02
-tools/BUSCO-Plot-Py/          plotting library checkout                (09)
-hifi_filtered/<sample>/       adapter-filtered HiFi reads               (02)
-hifiasm/                      haplotype contigs                        (02)
-yahs/                         Hi-C scaffolds + Juicebox .hic/.assembly (02)
-qc/                           QUAST at contig and scaffold stage       (02)
-qc/chromosome_homology/       ptarmigan↔chicken correspondence         (04)
-ragtag_ptarmigan/             RagTag AGP + per-assembly rename map     (05)
-liftoff_ptarmigan/            unmapped-feature lists                   (05)
-final_ptarmigan/              *.pseudo_chr.fasta, *.liftoff.gff3       (05)
-final_autosomes_ptarmigan/    autosome-only and sex/organelle FASTAs   (07)
-qc_ptarmigan/quast/           QUAST on the final assemblies            (05)
-qc_ptarmigan/depth_check/     HiFi coverage per chromosome             (05)
-qc_ptarmigan/busco/           BUSCO runs, 46 assemblies + reference    (07, 08)
-qc_ptarmigan/plots/           barplots, karyoplots, synteny            (09)
-qc_ptarmigan/sex_chromosome_check/                                     (10)
-qc_ptarmigan/join_support/    per-join Hi-C support scores             (11)
-mitogenomes/<SPECIES>_<SAMPLE>/ final_mitogenome.{fasta,gb,gff}        (12, 12b)
-mitogenomes/mito_qc.tsv, mitogenomes_pass.fasta                        (12c)
-mitogenomes/tree/             alignment and IQ-TREE output             (12d)
+ref/                          both references, indexes, chromosome maps            (01-02)
+conda_envs/                   tool envs                                            (04)
+hifi_filtered/, hifiasm/, yahs/   filtered reads, contigs, Hi-C scaffolds           (04)
+qc/chromosome_homology/       ptarmigan<->chicken correspondence                   (03)
+ragtag_ptarmigan/, liftoff_ptarmigan/                                              (05)
+final_ptarmigan/              <SP>_<S>_hap{1,2}.pseudo_chr.fasta, .liftoff.gff3     (05, 05b)
+qc_ptarmigan/join_support/    per-join Hi-C verdicts                               (06)
+pangenome_inputs/             graph-input FASTAs (unsupported joins and misjoins cut) (07, 08)
+qc_ptarmigan/busco/, plots/, sex_chromosome_check/                                  (09-10)
+pangenome_qc/                 Merqury, depth, summary tables                       (11)
+pangenome/, te_annotation/, comparison/   graphs, repeats, genome/gene/TE tables    (12)
+structural_variants/          per-chromosome VCFs, summary/                        (13)
+z_inversions/                 events, calls, ref_to_ptarmigan.paf                  (14)
+pixy_divergence/              BAMs, all-sites VCF chunks, pixy, summary/           (20)
+mitogenomes/                  per bird, mito_qc.tsv, mitogenomes_pass.fasta, tree/ (21)
+ncbi_submission/              GenBank files, .sqn                                  (ncbi_submission/)
 ```
 
-Step 13 runs on Negishi under `$CLUSTER_SCRATCH/GROUSE/grouse_thex`:
-
-```
-inputs/                       copies of final_ptarmigan/ and the ptarmigan reference
-work/projected/, work/msa/    haplotypes projected onto ptarmigan; one alignment per chromosome
-work/thexb/                   THExBuilder windows, trimAl and pairwise-filter output
-work/iqtree/<chrom>/          one IQ-TREE run per window (.contree used)
-work/thex_inputs/             Tree Viewer .xlsx, chromosome BED, gene GFF, summary tables
-```
-
-The deliverable assemblies are
-`final_ptarmigan/<SPECIES>_<SAMPLE>_hap{1,2}.pseudo_chr.fasta` with matching
-`.liftoff.gff3`.
+Step 15 runs on Negishi under `$CLUSTER_SCRATCH/GROUSE/grouse_thex`
+(`inputs/`, `work/projected/`, `work/msa/`, `work/thexb/`, `work/iqtree/<chrom>/`,
+`work/thex_inputs/`). Output folder names are unchanged by the renumbering.
 
 ---
 
 ## Manifest
 
-[`assembly_manifest.tsv`](assembly_manifest.tsv) — one row per sample, tab
-separated, in this column order:
+[`assembly_manifest.tsv`](assembly_manifest.tsv), one row per bird, tab separated:
 
 ```
 sample_id  species  hifi_bams  hic_r1  hic_r2  ont_ul
 ```
 
----
-
-## Accessory scripts
-
-[`accessory_scripts/`](accessory_scripts) holds the data-preparation utilities
-that run before step 02: ONT ultra-long extraction and QC, HiFi re-sequencing
-merges, and parallel decompression. They are run by hand, per dataset, as
-needed. It also holds `plot_assembly_contiguity.R`, which draws report
-Figure S5 from the final QUAST values (run locally).
+`hifi_bams` may be comma-separated; `ont_ul` is a path or `NA` (all `NA`: no assembly
+uses ONT; see `accessory/rerun_without_ONT.sh` for F5545 and F5597). Array steps index
+this file by `SLURM_ARRAY_TASK_ID`, so do not reorder it. Species names are
+whitespace-trimmed when read.
 
 ---
 
-## Window phylogenies (step 13): design notes
+## Design notes
 
-Step 13 moved here from the `grouse_pangenome` repo (it was that repo's step 05) because
-it uses only the finished assemblies. The full rationale is in the header of
-`13_thex_phylogeny.sh`; in short:
+**BUSCO measures the assembly, not the reference.** Step 05 only reorders and renames
+what hifiasm and YaHS produced, so a BUSCO score that changes after re-scaffolding means
+something went wrong in step 05.
 
-- **Reference = rock ptarmigan**, renamed to the grouse `chr_N` names. It is also the
-  outgroup, so it adds no species bias, and no grouse assembly's misjoins enter the
-  coordinates. Chromosomes that fewer than half the haplotypes cover (microchromosomes
-  30-33, 35, 36, 38) are dropped; W and MT are excluded.
-- **TopologyID** is the species-level relationship, not THEx's topobinner (with 47 tips
-  nearly every window is a unique topology).
+**Six haplotypes are ~100 Mb short.** In all six females the Z and W are on the same
+haplotype; the other haplotype lacks the Z (step 10).
 
-## Notes on interpreting the QC
+**Joins are cut before the graph (step 07).** A graph builder places sequence by
+alignment and gains nothing from reference order, while an incorrect join becomes a false
+structural variant. The TE and gene comparisons in step 12 still read the uncut
+`final_ptarmigan/` assemblies.
 
-**Six haplotypes are ~100 Mb short and ~4 points lower in BUSCO.** This is not
-an assembly failure: they are the Z-bearing or W-bearing haplotype of a ZW
-female, and phasing splits Z and W into separate haplotypes. Step 10 tests this
-three independent ways, and step 05's depth check corroborates it from the reads.
+**One join remains unresolved**: a junction inside chr_2 is unsupported by Hi-C in 17 of
+46 assemblies (binomial P ≈ 1.6 × 10⁻²³ against the 0.88% false-positive rate); it may be
+a real polymorphism or a shared assembly artifact.
 
-**One join is still unresolved.** The junction inside `chr_2` (the chicken
-chromosome 3 homolog), splitting it into ~7.4 Mb and ~102.6 Mb pieces, is
-*unsupported* by Hi-C in 17 of the 46 assemblies — across all three species and
-against both references — while ptarmigan itself carries the chromosome intact.
-Against a measured false-positive rate of 0.88%, seeing it 17 times is not
-chance (binomial P(≥17 of 46 | p = 0.0088) ≈ 1.6 × 10⁻²³). It is flagged rather than resolved: it may be a real
-polymorphism in these species, or a shared assembly artifact, and distinguishing
-those needs evidence this pipeline does not produce.
+**Window phylogenies (step 15).** Reference = rock ptarmigan renamed to grouse `chr_N`
+names (also the outgroup). Chromosomes covered by fewer than half the haplotypes are
+dropped. THExBuilder 1.0.4 computes a mismatch count, not a proportion, for its pairwise
+filter; the script passes 0.15 × sub-window length. `TopologyID` is the species-level
+relationship. THEx is installed with `pip --no-deps` into a pinned env.
+
+**Pangenome graphs (step 12).** Built per chromosome; graphs from a seqwish development
+build were broken and all were rebuilt with seqwish v0.7.9 from `pggb.sif` (`--resume`).
+`odgi untangle` aborts on these graphs (sdsl assertion), so step 14 uses whole-chromosome
+alignment instead.
+
+**Diversity (step 20).** Windows with π or d<sub>XY</sub> > 0.02 (collapsed repeats or
+paralogous mapping; mostly chromosomes 9–37, chromosome ends and the first 3 Mb of the
+reference Z) are excluded and listed in `summary/excluded_windows.tsv`. For a ZW system the
+neutral Z/A diversity ratio is 0.75 with an equal breeding sex ratio and falls to 0.5625
+when few males breed.
+
+**Tooling.** Gautschi has no mosdepth module and its merqury module lacks `meryl`; step 11
+fetches release binaries once (`INSTALL_ONLY=true bash 11_assembly_qc_array.sh`). pggb,
+odgi, vg and RepeatMasker run from Apptainer images (`accessory/pull_containers.sh`).
+panacus is downloaded as a static binary. minimap2 for steps 14 and 22 comes from a conda
+env (`export PATH=<env>/bin:$PATH`; never overwrite `PATH`).
+
+---
+
+## Renumbering (old → new)
+
+| Old (`prairie_grouse`) | New | | Old (`grouse_pangenome`) | New |
+|---|---|---|---|---|
+| 01 chicken reference | 01 | | 01 break unsupported joins | 07 |
+| 03 ptarmigan reference | 02 | | `scripts/chrom_qc/` | 08, 08b |
+| 04 chromosome homology | 03 | | 02, 02b–02d assembly QC | 11, 11b–11d |
+| 02 assembly + scaffolding | 04 | | 03 pangenome build | 12 |
+| 05, 05b | 05, 05b | | 05 structural variants | 13 |
+| 06 rename chromosomes | 05c | | 06 Z inversions | 14 |
+| 11 join support | 06 | | 07 pixy (+ Fig. 7 script) | 20, 20b |
+| 07, 08, 09 BUSCO | 09, 09b, 09c | | 04 short-read introgression | `shortread_panel/` |
+| 10 sex chromosomes | 10 | | `accessory/ncbi_*` | `ncbi_submission/` |
+| `accessory_scripts/plot_assembly_contiguity.R` | 11e | | `accessory/` (containers, outgroup) | `accessory/` |
+| 13, 13b–13f THEx | 15, 15b–15f | | | |
+| 12, 12b–12e mitogenomes | 21, 21b–21e | | | |
+| 12f mito read check | `shortread_panel/` | | | |
+| 14 Z markers (+ 14g indel markers) | 22 (+ 22b) | | | |
+| 14h, 14i marker validation | `shortread_panel/` | | | |
+| `accessory_scripts/` | `accessory/` | | | |
+| `chicken_reference_chain/` | `archive/` | | | |
+
+Output directory names (`structural_variants/`, `z_inversions/`, `pixy_divergence/`,
+`14g_z_indel_markers/`, etc.) were **not** renamed, so existing results remain valid.

@@ -1,12 +1,12 @@
 #!/bin/bash
 # =============================================================================
-# accessory/pull_containers.sh -- fetch the Apptainer images steps 03-04 use
+# accessory/pull_containers.sh -- fetch the Apptainer images steps 12-14 and 20 (and shortread_panel/) use
 # for tools with no Gautschi module (pggb + odgi, vg, RepeatMasker).
 # Run ONCE on a LOGIN node (compute nodes may have no internet):
 #   bash accessory/pull_containers.sh
 # Images go to ${CLUSTER_SCRATCH}/GROUSE/grouse_asm/containers/, the default
-# location read by 03_pangenome_build.sh (PGGB_SIF, TETOOLS_SIF) and
-# 04_shortread_introgression.sh (VG_SIF). Versions actually pulled are written
+# location read by 12_pangenome_build.sh (PGGB_SIF, TETOOLS_SIF) and
+# shortread_introgression.sh (VG_SIF). Versions actually pulled are written
 # to containers/VERSIONS.txt for the report's methods.
 # =============================================================================
 set -euo pipefail

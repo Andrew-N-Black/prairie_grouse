@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# STEP 14: SPECIES-DIAGNOSTIC Z-CHROMOSOME MARKERS (Gautschi)
+# STEP 22: SPECIES-DIAGNOSTIC Z-CHROMOSOME MARKERS (Gautschi)
 #
 # Two-stage design:
-#   1. DISCOVER in the 46 haplotype assemblies (step 05/06 output): align each haplotype's chr_Z
+#   1. DISCOVER in the 46 haplotype assemblies (step 05/05c output): align each haplotype's chr_Z
 #      to the LEPC reference Z scaffolds (the coordinates of the 506-bird panel), call SNPs and
 #      indels per haplotype (minimap2 + paftools call), and keep sites where every called
 #      haplotype of one species carries one allele and every called haplotype of another species
@@ -15,14 +15,14 @@
 #      across hundreds of birds, not 7-19 assembled Z copies. Sympatric groups show how often
 #      the other species' allele turns up in contact zones.
 #
-#   bash 14_z_markers.sh setup       # once, login node: conda env, reference Z, W, bam lists
-#   bash 14_z_markers.sh submit      # align (array) -> discover -> panel (array) -> summarize
+#   bash 22_z_markers.sh setup       # once, login node: conda env, reference Z, W, bam lists
+#   bash 22_z_markers.sh submit      # align (array) -> discover -> panel (array) -> summarize
 #                                    # all on dewoody standby (QOS=standby, 4 h); QOS=normal WALL=1-00:00:00 to change
-#   bash 14_z_markers.sh status
-#   bash 14_z_markers.sh select        # re-pick the panel SNPs (MIN_CLEAN, BIN, MAX_MASKED) on the login node
-#   bash 14_z_markers.sh submit-panel  # rerun only the ANGSD panel check + summary
-#   bash 14_z_markers.sh submit-zbam   # cut Z-only BAMs from the CRAMs first (ANGSD CRAM decode errors), then panel + summary
-#   bash 14_z_markers.sh submit-assign # per-bird Z ancestry at the confirmed markers -> z_assign_per_bird.tsv
+#   bash 22_z_markers.sh status
+#   bash 22_z_markers.sh select        # re-pick the panel SNPs (MIN_CLEAN, BIN, MAX_MASKED) on the login node
+#   bash 22_z_markers.sh submit-panel  # rerun only the ANGSD panel check + summary
+#   bash 22_z_markers.sh submit-zbam   # cut Z-only BAMs from the CRAMs first (ANGSD CRAM decode errors), then panel + summary
+#   bash 22_z_markers.sh submit-assign # per-bird Z ancestry at the confirmed markers -> z_assign_per_bird.tsv
 #
 # Output: ${OUT_DIR}/z_markers.final.tsv, one row per candidate: alleles per species in the
 #   assemblies, haplotypes called, flank cleanliness, genome copies, W hits, repeat fraction,
@@ -48,9 +48,9 @@ set -euo pipefail
 unset LD_PRELOAD
 
 REPO_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
-SCRIPT="${REPO_DIR}/14_z_markers.sh"
-PYHELP="${REPO_DIR}/14_z_markers.py"
-GROUPS_TSV="${GROUPS_TSV:-${REPO_DIR}/panel_groups.tsv}"   # ID, species, context, group, cram
+SCRIPT="${REPO_DIR}/22_z_markers.sh"
+PYHELP="${REPO_DIR}/22_z_markers.py"
+GROUPS_TSV="${GROUPS_TSV:-${REPO_DIR}/shortread_panel/panel_groups.tsv}"   # ID, species, context, group, cram
 
 ASM="${ASM:-${CLUSTER_SCRATCH}/GROUSE/grouse_asm}"
 ASM_GLOB="${ASM_GLOB:-${ASM}/final_ptarmigan/*_hap[12].pseudo_chr.fasta}"

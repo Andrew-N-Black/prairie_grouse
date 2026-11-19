@@ -2,7 +2,7 @@
 # =============================================================================
 # PANGENOME INPUT PREP 02 — automated assembly QC, one array task per sample
 #
-# Runs on exactly the FASTAs that will go into the graph (step 01 output), so
+# Runs on exactly the FASTAs that will go into the graph (step 07 output), so
 # the QC describes the pangenome inputs, not an earlier version of them.
 #
 # Per sample (both haplotypes together):
@@ -25,11 +25,11 @@
 # ~512 GB-memory node, so it belongs in its own job; it is also required by NCBI
 # at submission, which is the natural time to run it.
 #
-# USAGE (from the grouse_pangenome repo root, so assembly_manifest.tsv is found)
+# USAGE (from the repo root, so assembly_manifest.tsv is found)
 #   N=$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)
-#   sbatch --array=0-$((N-1))%6 02_assembly_qc_array.sh
-#   sbatch --array=7 02_assembly_qc_array.sh             # one sample
-#   then: bash 02b_collate_qc.sh
+#   sbatch --array=0-$((N-1))%6 11_assembly_qc_array.sh
+#   sbatch --array=7 11_assembly_qc_array.sh             # one sample
+#   then: bash 11b_collate_qc.sh
 #
 # Resume-safe: each stage is skipped when its output exists.
 #
@@ -38,7 +38,7 @@
 # script uses (and, once, downloads) the official release binary into
 # ${ASM_DIR}/tools/<tool>-<version>/. Do the download on a LOGIN node first,
 # since compute nodes may have no outbound network:
-#   INSTALL_ONLY=true bash 02_assembly_qc_array.sh
+#   INSTALL_ONLY=true bash 11_assembly_qc_array.sh
 # =============================================================================
 #SBATCH --job-name=pg02_asm_qc
 #SBATCH --output=logs/%x_%A_%a.out
@@ -63,11 +63,11 @@ show_tsv() { if command -v column >/dev/null 2>&1; then column -t -s$'\t' "$1"; 
 # USER-DEFINED VARIABLES
 # =============================================================================
 ASM_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm"
-PG_WORK="${PG_WORK:-${ASM_DIR}}"     # shared PROJECT_DIR, as steps 01, 03, 04
-# This repo's copy of the manifest (sample, species, hifi_bams, ...), as in step 03
+PG_WORK="${PG_WORK:-${ASM_DIR}}"     # shared PROJECT_DIR, as steps 07 and 12
+# This repo's copy of the manifest (sample, species, hifi_bams, ...), as in step 12
 MANIFEST="${MANIFEST:-${SLURM_SUBMIT_DIR:-$PWD}/assembly_manifest.tsv}"
 
-IN_DIR="${PG_WORK}/pangenome_inputs"   # step 01 output
+IN_DIR="${PG_WORK}/pangenome_inputs"   # step 07 output
 QC_DIR="${PG_WORK}/pangenome_qc"
 
 # Adapter-filtered HiFi reads, if they were kept. A glob with SAMPLE in it;
@@ -135,7 +135,7 @@ else
     fi
     if [[ ! -x "$MOSDEPTH" ]] || ! "$MOSDEPTH" --version >/dev/null 2>&1; then
         echo "ERROR: could not obtain a working mosdepth at ${MOSDEPTH}"
-        echo "       On a login node run:  INSTALL_ONLY=true bash 02_assembly_qc_array.sh"
+        echo "       On a login node run:  INSTALL_ONLY=true bash 11_assembly_qc_array.sh"
         echo "       or download ${MOSDEPTH_URL} there yourself and chmod +x it."
         exit 1
     fi
@@ -161,7 +161,7 @@ else
     fi
     if [[ ! -x "$MERYL" ]] || ! "$MERYL" --version >/dev/null 2>&1; then
         echo "ERROR: could not obtain a working meryl at ${MERYL}"
-        echo "       On a login node run:  INSTALL_ONLY=true bash 02_assembly_qc_array.sh"
+        echo "       On a login node run:  INSTALL_ONLY=true bash 11_assembly_qc_array.sh"
         echo "       or unpack ${MERYL_URL} into ${MERYL_DIR} yourself."
         exit 1
     fi
@@ -206,7 +206,7 @@ SPECIES="${SPECIES//[[:space:]]/}"   # manifest species may carry stray spaces (
 H1=$(ls "${IN_DIR}"/*_"${SAMPLE}"_hap1.pg_input.fasta 2>/dev/null | head -1 || true)
 H2=$(ls "${IN_DIR}"/*_"${SAMPLE}"_hap2.pg_input.fasta 2>/dev/null | head -1 || true)
 for F in "$H1" "$H2"; do
-    [[ -n "$F" && -s "$F" ]] || { echo "ERROR: missing pg_input FASTA for ${SAMPLE} in ${IN_DIR} — run step 01"; exit 1; }
+    [[ -n "$F" && -s "$F" ]] || { echo "ERROR: missing pg_input FASTA for ${SAMPLE} in ${IN_DIR} — run step 07"; exit 1; }
 done
 P1=$(basename "$H1" .pg_input.fasta)
 P2=$(basename "$H2" .pg_input.fasta)

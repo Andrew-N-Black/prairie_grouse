@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Step 05b -- relabel chr_W in MALE (ZZ) haplotypes as unplaced sequence.
-# Run after 05_ragtag_liftoff_array.sh (and 06 if used), before 07_busco_array.sh.
+# Run after 05_ragtag_liftoff_array.sh (and 05c if used), before 09_busco_array.sh.
 #
 # Males have no W chromosome. Anything RagTag placed on the reference W in a
 # male is repeat / Z-gametolog sequence, so it is renamed scaffold_N (next free

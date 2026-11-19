@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Step 13b: statistics for the THEx window-tree results (run after 13_thex_phylogeny.sh).
+Step 15b: statistics for the THEx window-tree results (run after 15_thex_phylogeny.sh).
 
-    python 13b_thex_stats.py grouse_TreeViewer_input.xlsx chromosome_lengths.bed [out_prefix] [min_windows=20]
+    python 15b_thex_stats.py grouse_TreeViewer_input.xlsx chromosome_lengths.bed [out_prefix] [min_windows=20]
 
 Runs in the THEx env (pandas, scipy, statsmodels, scikit-posthocs). Writes <out_prefix>.*.tsv
 and prints a summary.

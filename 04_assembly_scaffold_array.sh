@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SLURM ARRAY JOB: DE NOVO ASSEMBLY AND Hi-C SCAFFOLDING — hifiasm + yahs
-# Step 02 — the reference-free half of the pipeline. One array task per sample;
+# Step 04 — the reference-free half of the pipeline. One array task per sample;
 # n=23 samples across 3 species (STGR, LEPC, GRPC).
 #
 # This script stops at the yahs scaffolds deliberately. Everything downstream of
@@ -35,11 +35,11 @@
 #
 # USAGE:
 #   N=$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)
-#   sbatch --array=0-$((N-1))%6 02_assembly_scaffold_array.sh
+#   sbatch --array=0-$((N-1))%6 04_assembly_scaffold_array.sh
 #   (%6 caps concurrent tasks — tune to fair-share/node availability)
 #
 #   Rerun a single failed task, e.g. index 7:
-#   sbatch --array=7 02_assembly_scaffold_array.sh
+#   sbatch --array=7 04_assembly_scaffold_array.sh
 # =============================================================================
 #SBATCH --job-name=grouse_asm
 #SBATCH --output=logs/%x_%A_%a.out
@@ -86,7 +86,7 @@ unset LD_PRELOAD
 MANIFEST="${SLURM_SUBMIT_DIR}/assembly_manifest.tsv"
 
 # Shared across every step of the pipeline. The conda environments built here
-# are reused by steps 05 and 09, so this is the only place they are created.
+# are reused by steps 05 and 09c, so this is the only place they are created.
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm"
 REF_DIR="${PROJECT_DIR}/ref"
 
@@ -212,7 +212,7 @@ fi
 # =============================================================================
 if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
     echo "ERROR: SLURM_ARRAY_TASK_ID is not set."
-    echo "Submit with: sbatch --array=0-N 02_assembly_scaffold_array.sh"
+    echo "Submit with: sbatch --array=0-N 04_assembly_scaffold_array.sh"
     exit 1
 fi
 if [[ ! -f "$MANIFEST" ]]; then
@@ -533,8 +533,8 @@ echo "  QUAST     : ${QC_DIR}/quast/"
 echo "  Juicebox  : ${SCAFFOLD_DIR}/${SAMPLE}.hap{1,2}_JBAT.{hic,assembly}"
 echo ""
 echo "  Next, once every sample has finished:"
-echo "    bash   03_ptarmigan_reference.sh"
-echo "    sbatch 04_chromosome_homology.sh"
+echo "    bash   02_ptarmigan_reference.sh"
+echo "    sbatch 03_chromosome_homology.sh"
 echo "    N=\$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)"
 echo "    sbatch --array=0-\$((N-1))%6 05_ragtag_liftoff_array.sh"
 echo "============================================================"

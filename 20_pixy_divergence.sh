@@ -1,12 +1,12 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: DXY, FST AND PI ACROSS THE GENOME WITH PIXY
-# Step 07 — requires step 03 (pangenome/chr_*/*.final.og) and step 05
+# Step 20 — requires step 12 (pangenome/chr_*/*.final.og) and step 13
 # (structural_variants/chr_*/ref.txt: the reference path of every chromosome).
 #
 # pixy needs an all-sites VCF (invariant sites included) in one linear coordinate
 # system, which a graph cannot provide directly. So:
-#   1. ref:     the reference path of every chromosome (the same paths step 05
+#   1. ref:     the reference path of every chromosome (the same paths step 13
 #               used, so windows share coordinates with the SV and Z-inversion
 #               results) is extracted from the graph into reference.fa. chr_W
 #               (STGR path) is included as a decoy so female W reads do not map
@@ -17,10 +17,10 @@
 #               recommendation), genotypes outside MIN_DP..MAX_DP set missing;
 #               indels and multiallelic sites dropped; then pixy pi/dxy/fst in
 #               WIN windows for STGR, GRPC and LEPC
-#   4. summary: 07_pixy_summary.py: per-chromosome and genome-wide values after
+#   4. summary: 20_pixy_summary.py: per-chromosome and genome-wide values after
 #               excluding low-site and divergence-outlier windows, Z vs autosomes with
 #               1-Mb block-bootstrap CIs, pi per species vs the neutral Z/A range
-#               (0.5625-0.75), genome scan; 07_fig7_diversity_divergence.py: Figure 7
+#               (0.5625-0.75), genome scan; 20b_fig7_diversity_divergence.py: Figure 7
 #
 # SETUP (once, on a login node)
 #   module load conda
@@ -28,11 +28,11 @@
 #   (the script puts ${PIXY_ENV}/bin on PATH itself; never overwrite PATH)
 #
 # USAGE (from the repo root)
-#   bash 07_pixy_divergence.sh samples      # writes samples.tsv from HIFI_DIR: CHECK IT
-#   sbatch --export=ALL,STAGE=ref 07_pixy_divergence.sh
-#   bash 07_pixy_divergence.sh map          # submits one mapping task per bird
-#   bash 07_pixy_divergence.sh call         # submits the chunk array + summary (afterok)
-#   STAGE=summary sbatch --export=ALL 07_pixy_divergence.sh      # rerun the summary only
+#   bash 20_pixy_divergence.sh samples      # writes samples.tsv from HIFI_DIR: CHECK IT
+#   sbatch --export=ALL,STAGE=ref 20_pixy_divergence.sh
+#   bash 20_pixy_divergence.sh map          # submits one mapping task per bird
+#   bash 20_pixy_divergence.sh call         # submits the chunk array + summary (afterok)
+#   STAGE=summary sbatch --export=ALL 20_pixy_divergence.sh      # rerun the summary only
 #
 # samples.tsv: sample <tab> species <tab> reads (comma-separated .fastq.gz/.fq.gz/
 #   .fasta.gz or unaligned HiFi .bam) <tab> sex (F = the birds in FEMALES)
@@ -223,13 +223,13 @@ summary)
     need python3
     N=$(wc -l < "${OUT}/chunks.txt"); D=$(ls "${OUT}"/pixy/*_dxy.txt 2>/dev/null | grep -vc _males_ || true)
     echo ">>> pixy output for ${D} of ${N} chunks"
-    python3 "${REPO}/07_pixy_summary.py" --pixy "${OUT}/pixy" --samples "$SAMPLES" --out "${OUT}/summary" \
+    python3 "${REPO}/20_pixy_summary.py" --pixy "${OUT}/pixy" --samples "$SAMPLES" --out "${OUT}/summary" \
         --min-sites "$MIN_SITES" --max-div "$MAX_DIV" --boot "$BOOT"
-    # Figure 7: needs the reference-Z -> ptarmigan-Z alignment from step 06
+    # Figure 7: needs the reference-Z -> ptarmigan-Z alignment from step 14
     if cp "${PROJECT_DIR}/z_inversions/ref_to_ptarmigan.paf" "${OUT}/summary/" 2>/dev/null; then
-        python3 "${REPO}/07_fig7_diversity_divergence.py" "${OUT}/summary"
+        python3 "${REPO}/20b_fig7_diversity_divergence.py" "${OUT}/summary"
     else
-        echo "  (no z_inversions/ref_to_ptarmigan.paf: run step 06 with PTARMIGAN_FA for Figure 7)"
+        echo "  (no z_inversions/ref_to_ptarmigan.paf: run step 14 with PTARMIGAN_FA for Figure 7)"
     fi
     ;;
 *)

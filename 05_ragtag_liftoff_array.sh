@@ -1,16 +1,16 @@
 #!/bin/bash
 # =============================================================================
 # SLURM ARRAY JOB: RE-SCAFFOLD AND RE-ANNOTATE AGAINST ROCK PTARMIGAN
-# Step 05 — requires 03_ptarmigan_reference.sh, and requires
-# 02_assembly_scaffold_array.sh to have produced the yahs scaffolds.
+# Step 05 — requires 02_ptarmigan_reference.sh, and requires
+# 04_assembly_scaffold_array.sh to have produced the yahs scaffolds.
 #
 # This is the reference-guided half of the pipeline. hifiasm and yahs are NOT
-# re-run: the Hi-C-scaffolded assemblies step 02 produced are reference-free,
-# and are the correct input to a reference-guided ordering. Step 02's tree is
+# re-run: the Hi-C-scaffolded assemblies step 04 produced are reference-free,
+# and are the correct input to a reference-guided ordering. Step 04's tree is
 # read, never written to, so this step can be re-run against a different
 # reference without rebuilding anything upstream of it.
 #
-# INPUT  (read-only, from step 02)
+# INPUT  (read-only, from step 04)
 #   ${PROJECT_DIR}/yahs/<SAMPLE>.<HAP>_scaffolds_final.fa
 #
 # OUTPUT (a parallel tree, suffixed _ptarmigan)
@@ -26,15 +26,15 @@
 #
 # WHY THE HI-C IS RE-ALIGNED (DO_HIC)
 #   Hi-C reads are aligned against the FINAL, reference-ordered assembly here,
-#   not reused from step 02. Step 02's CRAM is aligned to the pre-RagTag yahs
+#   not reused from step 04. Step 04's CRAM is aligned to the pre-RagTag yahs
 #   scaffolds; the pseudo-chromosome assembly is the same sequence in a
 #   different order under different names, so those coordinates are meaningless
 #   against it and reusing that CRAM would silently produce nonsense
-#   join-support scores. Step 11 therefore needs its own alignment, which is
+#   join-support scores. Step 06 therefore needs its own alignment, which is
 #   what DO_HIC produces. It is also the expensive part of this job: with
 #   DO_HIC=false the job is a few hours, with it on, most of two days. Turn it
 #   off if you only want the karyotype and BUSCO results; turn it on before
-#   running 11_join_support.sh.
+#   running 06_join_support.sh.
 #
 # USAGE
 #   N=$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)
@@ -86,9 +86,9 @@ ml samtools/1.22.1
 # can kill subshells under `set -e`. It's accounting only — safe to drop.
 unset LD_PRELOAD
 
-# Unlike step 02 these can be loaded up front: this job never touches anaconda
+# Unlike step 04 these can be loaded up front: this job never touches anaconda
 # (PretextMap and the dotplot interpreter are invoked by absolute path from the
-# conda envs step 02 already built), so the Lmod conflict that forced step 02 to
+# conda envs step 04 already built), so the Lmod conflict that forced step 04 to
 # defer these does not arise here.
 ml ragtag
 ml liftoff
@@ -104,8 +104,8 @@ REF_DIR="${PROJECT_DIR}/ref"
 
 # ---- Read-only inputs from the existing tree --------------------------------
 SCAFFOLD_DIR="${PROJECT_DIR}/yahs"          # yahs output — the real input here
-FILT_DIR="${PROJECT_DIR}/hifi_filtered"     # adapter-filtered HiFi from step 02
-CONDA_ENVS_DIR="${PROJECT_DIR}/conda_envs"  # envs built by step 02
+FILT_DIR="${PROJECT_DIR}/hifi_filtered"     # adapter-filtered HiFi from step 04
+CONDA_ENVS_DIR="${PROJECT_DIR}/conda_envs"  # envs built by step 04
 
 # ---- Parallel output tree ---------------------------------------------------
 # Changing REF_TAG alone retargets every output path, which is what makes a
@@ -117,7 +117,7 @@ FINAL_DIR="${PROJECT_DIR}/final_${REF_TAG}"
 QC_DIR="${PROJECT_DIR}/qc_${REF_TAG}"
 
 # ---- Reference --------------------------------------------------------------
-# Resolved and recorded by step 03. Read rather than hardcoded so the two
+# Resolved and recorded by step 02. Read rather than hardcoded so the two
 # scripts cannot disagree about which assembly was downloaded.
 ASM_DIR_RECORD="${REF_DIR}/ptarmigan_asm_dir.txt"
 
@@ -128,16 +128,16 @@ ASM_DIR_RECORD="${REF_DIR}/ptarmigan_asm_dir.txt"
 #            These are the names the delivered assemblies carry. They name a
 #            chromosome rather than asserting a comparison, which is what you
 #            want in a deliverable; the correspondence to the chicken karyotype
-#            is recorded separately by step 04 and is the thing to cite when
+#            is recorded separately by step 03 and is the thing to cite when
 #            relating these assemblies to the galliform literature.
-# homology : use the chicken-homology map from 04_chromosome_homology.sh, so
+# homology : use the chicken-homology map from 03_chromosome_homology.sh, so
 #            chr_N names the same chromosome as chicken chr_N. A ptarmigan
 #            chromosome spanning two chicken chromosomes is then named for both
 #            (chr_6_8), one spanning part of one is lettered (chr_2a), and one
 #            with no confident match becomes chr_u<N>. Useful while comparing
 #            references; poor as an identifier, because every name encodes a
-#            claim about a third genome. REQUIRES step 04 to have run.
-#            06_rename_chromosomes.sh converts a tree built this way to native
+#            claim about a third genome. REQUIRES step 03 to have run.
+#            05c_rename_chromosomes.sh converts a tree built this way to native
 #            names after the fact, which is how the delivered assemblies were
 #            produced.
 #
@@ -154,7 +154,7 @@ HOMOLOGY_MAP="${PROJECT_DIR}/qc/chromosome_homology/ptarmigan_vs_chicken.rename_
 DO_LIFTOFF="${DO_LIFTOFF:-true}"
 DO_QUAST="${DO_QUAST:-true}"
 
-# Hi-C re-alignment + Pretext contact map. Required by step 11; see the header.
+# Hi-C re-alignment + Pretext contact map. Required by step 06; see the header.
 DO_HIC="${DO_HIC:-true}"
 
 # Orientation dotplot vs the ptarmigan reference (independent minimap2 pass,
@@ -162,10 +162,10 @@ DO_HIC="${DO_HIC:-true}"
 # that the new ordering is sane.
 DO_DOTPLOT="${DO_DOTPLOT:-true}"
 
-# tidk telomere profiling is OFF by default here, unlike step 02. It measures
+# tidk telomere profiling is OFF by default here, unlike step 04. It measures
 # telomeric repeat density along each chromosome, which depends on sequence
 # content rather than on the reference used to order it — so re-running it on
-# the same scaffolds in a different order reproduces the step 02 result almost
+# the same scaffolds in a different order reproduces the step 04 result almost
 # exactly. Set true if you want the figure regenerated against the new names.
 DO_TIDK="${DO_TIDK:-false}"
 
@@ -187,7 +187,7 @@ HIC_MIN_MAPQ=20
 # small — and short unplaced scaffolds are set aside, not discarded.
 MIN_UNPLACED_SCAFFOLD_LEN=50000
 
-# Absolute-path tools from step 02's conda envs.
+# Absolute-path tools from step 04's conda envs.
 PRETEXT_ENV_DIR="${CONDA_ENVS_DIR}/pretext"
 PRETEXTMAP_BIN="${PRETEXT_ENV_DIR}/bin/PretextMap"
 PRETEXTSNAPSHOT_BIN="${PRETEXT_ENV_DIR}/bin/PretextSnapshot"
@@ -212,7 +212,7 @@ done
 
 if [[ ! -s "$ASM_DIR_RECORD" ]]; then
     echo "ERROR: ${ASM_DIR_RECORD} not found."
-    echo "       Run 03_ptarmigan_reference.sh first."
+    echo "       Run 02_ptarmigan_reference.sh first."
     exit 1
 fi
 ASM_DIR="$(head -n1 "$ASM_DIR_RECORD")"
@@ -230,12 +230,12 @@ echo ">>> FASTA     : ${REF_FASTA}"
 
 if [[ ! -s "$REF_FASTA" ]]; then
     echo "ERROR: reference FASTA not found: ${REF_FASTA}"
-    echo "       Run 03_ptarmigan_reference.sh first."
+    echo "       Run 02_ptarmigan_reference.sh first."
     exit 1
 fi
 if [[ ! -s "$REF_CHR_MAP" ]]; then
     echo "ERROR: chromosome map not found: ${REF_CHR_MAP}"
-    echo "       Run 03_ptarmigan_reference.sh first."
+    echo "       Run 02_ptarmigan_reference.sh first."
     exit 1
 fi
 
@@ -248,7 +248,7 @@ case "$CHR_NAMING" in
             echo "ERROR: CHR_NAMING=homology but the homology map is missing:"
             echo "         ${HOMOLOGY_MAP}"
             echo ""
-            echo "       Run 04_chromosome_homology.sh first. It aligns the"
+            echo "       Run 03_chromosome_homology.sh first. It aligns the"
             echo "       ptarmigan reference to chicken and works out which"
             echo "       chicken chromosome each ptarmigan chromosome corresponds"
             echo "       to."
@@ -276,7 +276,7 @@ case "$CHR_NAMING" in
         echo "    !! For bLagMut1 these are a LENGTH RANKING, not homology."
         echo "       chr_N here is NOT chicken chr_N. To relate these assemblies"
         echo "       to the galliform literature use the correspondence table"
-        echo "       from 04_chromosome_homology.sh, never the number alone."
+        echo "       from 03_chromosome_homology.sh, never the number alone."
         ;;
     *)
         echo "ERROR: CHR_NAMING must be 'homology' or 'native', got '${CHR_NAMING}'"
@@ -288,7 +288,7 @@ if [[ "$DO_LIFTOFF" == true && ! -s "$REF_GFF" ]]; then
     echo ""
     echo "  !! DO_LIFTOFF=true but no annotation GFF at:"
     echo "     ${REF_GFF}"
-    echo "     Step 03 reported whether one was available. Continuing with"
+    echo "     Step 02 reported whether one was available. Continuing with"
     echo "     Liftoff disabled — RagTag, BUSCO, karyotype and join support are"
     echo "     all unaffected."
     DO_LIFTOFF=false
@@ -298,7 +298,7 @@ if [[ "$DO_HIC" == true ]]; then
     for BIN in "$PRETEXTMAP_BIN" "$PRETEXTSNAPSHOT_BIN"; do
         if [[ ! -x "$BIN" ]]; then
             echo "ERROR: DO_HIC=true but ${BIN} is missing."
-            echo "       It is created by 02_assembly_scaffold_array.sh's one-time"
+            echo "       It is created by 04_assembly_scaffold_array.sh's one-time"
             echo "       setup. Either run that once, or set DO_HIC=false."
             exit 1
         fi
@@ -333,7 +333,7 @@ if [[ -z "$LINE" ]]; then
     exit 1
 fi
 
-# Same column layout as step 02: sample, species, hifi bams, hic R1, hic R2, ONT.
+# Same column layout as step 04: sample, species, hifi bams, hic R1, hic R2, ONT.
 IFS=$'\t' read -r SAMPLE SPECIES _HIFI_BAMS HIC_R1 HIC_R2 _ONT_UL <<< "$LINE"
 SPECIES="${SPECIES//[[:space:]]/}"   # manifest species may carry stray spaces ("LEPC ")
 if [[ -z "${SAMPLE:-}" || -z "${SPECIES:-}" ]]; then
@@ -376,7 +376,7 @@ for HAP in hap1 hap2; do
 
     if [[ ! -s "$SCAFFOLDS" ]]; then
         echo "ERROR: yahs scaffolds not found: ${SCAFFOLDS}"
-        echo "       02_assembly_scaffold_array.sh must have completed for this"
+        echo "       04_assembly_scaffold_array.sh must have completed for this"
         echo "       sample/haplotype. This script re-scaffolds its output; it"
         echo "       does not re-run hifiasm or yahs."
         exit 1
@@ -392,7 +392,7 @@ for HAP in hap1 hap2; do
         echo "  RagTag output already exists and is current — skipping"
     else
         # -u writes the unplaced sequences into the output as well, matching
-        # step 02 exactly: nothing yahs produced is dropped at this stage.
+        # step 04 exactly: nothing yahs produced is dropped at this stage.
         ragtag.py scaffold -o "$RAGTAG_OUT" -t "$THREADS" -u "$REF_FASTA" "$SCAFFOLDS"
     fi
     if [[ ! -s "$PSEUDO_CHR" ]]; then
@@ -401,7 +401,7 @@ for HAP in hap1 hap2; do
     fi
     if [[ ! -s "${RAGTAG_OUT}/ragtag.scaffold.agp" ]]; then
         echo "ERROR: RagTag produced no AGP: ${RAGTAG_OUT}/ragtag.scaffold.agp"
-        echo "       Step 11 needs it to score the joins."
+        echo "       Step 06 needs it to score the joins."
         exit 1
     fi
 
@@ -455,7 +455,7 @@ for HAP in hap1 hap2; do
             | sort -k2,2 -nr \
             | awk -F'\t' -v chrmap="$ACTIVE_CHR_MAP" -v takenfile="$TAKEN_NAMES" '
                 BEGIN {
-                    # Skip comments and blanks: the homology map from step 04
+                    # Skip comments and blanks: the homology map from step 03
                     # carries a "# accession  chromosome_name" header, and the
                     # plain assembly-report map does not. Both are read here.
                     while ((getline line < chrmap) > 0) {
@@ -605,7 +605,7 @@ for HAP in hap1 hap2; do
             echo "  already exists and is current — skipping"
         else
             # Liftoff reuses alignments it finds in -dir (and a target .mmi cached
-            # by path), so a FASTA renamed or edited after an earlier run (step 06
+            # by path), so a FASTA renamed or edited after an earlier run (step 05c
             # renaming, 05b W relabel, misjoin fix) gets features placed on
             # sequence names that no longer exist -> pyfaidx KeyError in polish.
             # Always start Liftoff clean.
@@ -639,7 +639,7 @@ for HAP in hap1 hap2; do
         if [[ -s "$DOTPLOT" && "$DOTPLOT" -nt "$FINAL_FASTA" ]]; then
             echo "  already exists and is current — skipping"
         else
-            # asm20 as in step 02: these are between-genus comparisons, so the
+            # asm20 as in step 04: these are between-genus comparisons, so the
             # divergence preset has to be permissive. Lagopus-Tympanuchus is
             # closer than Gallus-Tympanuchus, so asm20 is, if anything,
             # conservative here — keeping it identical is what makes the two
@@ -721,7 +721,7 @@ PYEOF
                 echo "  bwa index"
                 bwa index "$FINAL_FASTA"
             fi
-            # Identical flags to step 02 so the two CRAMs — and therefore the
+            # Identical flags to step 04 so the two CRAMs — and therefore the
             # two sets of join-support scores — are produced the same way:
             # -5SP for Hi-C, MAPQ filter at HIC_MIN_MAPQ. CRAM is fine, it is
             # only ever read back through samtools view.
@@ -782,7 +782,7 @@ PYEOF
         echo ""
         echo ">>> [8] HiFi depth check — chr_Z/chr_W vs autosomes"
 
-        # Step 02 wrote these. Collect them without nullglob side effects and
+        # Step 04 wrote these. Collect them without nullglob side effects and
         # without letting an empty glob reach minimap2 as a literal path.
         DEPTH_READS=()
         while IFS= read -r _r; do
@@ -792,7 +792,7 @@ PYEOF
 
         if [[ ${#DEPTH_READS[@]} -eq 0 ]]; then
             echo "  WARNING: no adapter-filtered HiFi reads under ${FILT_DIR}/${SAMPLE}"
-            echo "           Step 02 produces these. Skipping the depth check;"
+            echo "           Step 04 produces these. Skipping the depth check;"
             echo "           10_sex_chromosome_check.sh still runs without it."
         else
             mkdir -p "${QC_DIR}/depth_check"
@@ -869,13 +869,13 @@ echo ""
 echo "  Next, once every task has finished:"
 echo "    N=\$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)"
 if [[ "$CHR_NAMING" == "homology" ]]; then
-    echo "    sbatch 06_rename_chromosomes.sh   # homology names -> native names"
+    echo "    sbatch 05c_rename_chromosomes.sh   # homology names -> native names"
 fi
-echo "    sbatch --array=0-\$((N-1))%8 07_busco_array.sh"
-echo "    sbatch 08_ptarmigan_reference_busco.sh"
-echo "    sbatch 09_busco_plots.sh          # after 07 and 08"
+echo "    sbatch --array=0-\$((N-1))%8 09_busco_array.sh"
+echo "    sbatch 09b_ptarmigan_reference_busco.sh"
+echo "    sbatch 09c_busco_plots.sh          # after 07 and 08"
 echo "    sbatch 10_sex_chromosome_check.sh # after 07 and 08"
 if [[ "$DO_HIC" == true ]]; then
-    echo "    sbatch --array=0-\$((N-1))%8 11_join_support.sh"
+    echo "    sbatch --array=0-\$((N-1))%8 06_join_support.sh"
 fi
 echo "============================================================"

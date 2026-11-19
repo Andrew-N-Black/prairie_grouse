@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Step 06 analysis: large inversions on the Z chromosome from the pangenome graph.
+"""Step 14 analysis: large inversions on the Z chromosome from the pangenome graph.
 
-Inputs (written by 06_z_inversions.sh):
+Inputs (written by 14_z_inversions.sh):
   untangle.tsv     odgi untangle of every Z path against one reference Z path
   z_paths.fa       sequences of every Z path (odgi paths -f), for gaps and path lengths
   ref.txt          the reference path name
@@ -21,7 +21,7 @@ Method
      event. A haplotype is "called" for an event if its untangled segments cover >= --cover of
      the event's span; called haplotypes that are not carriers are non-carriers. The reference
      haplotype is a non-carrier by definition.
-  4. Events are classified like the structural variants of step 05: diagnostic for species X
+  4. Events are classified like the structural variants of step 13: diagnostic for species X
      (X fixed for one state, both others fixed for the other), fixed between a species pair, or
      polymorphic / private. A species must have >= --min-called-frac of its Z haplotypes called
      (haplotypes whose Z path length is >= half the median; female haplotypes holding only a

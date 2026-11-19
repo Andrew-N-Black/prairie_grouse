@@ -10,7 +10,7 @@
 #   RagTag joins (ordered against ptarmigan)    -> align-xgenus
 #   RagTag joins supported by the Hi-C test     -> align-xgenus + proximity-ligation
 #
-# STAGES (run from accessory/)
+# STAGES (run from ncbi_submission/)
 #   sbatch --export=ALL,STAGE=tables ncbi_make_sqn.sh       # .fsa + .tbl per assembly, gap_summary.tsv
 #   ONLY=F5540 sbatch --export=ALL,STAGE=tables ncbi_make_sqn.sh   # one-bird test
 #   bash ncbi_make_sqn.sh sqn                                # array: table2asn on all 46 (needs TEMPLATE)

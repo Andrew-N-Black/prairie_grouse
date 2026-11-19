@@ -17,7 +17,7 @@ INPUTS (per haplotype, prefix <SP>_<SAMPLE>_<HAP>)
     <final-dir>/<P>.pseudo_chr.fasta (+ .fai)     current assembly
     <ragtag-dir>/<S>.<H>/ragtag.scaffold.agp       where every join is
     <ragtag-dir>/<S>.<H>/<S>.<H>.rename_map.tsv    AGP object -> current name
-    <joins-dir>/<P>.joins.tsv                       step 13 verdicts
+    <joins-dir>/<P>.joins.tsv                       step 06 verdicts
     <final-dir>/W_relabel_log.tsv (optional)        male chr_W -> scaffold_N
 
 OUTPUTS (in --out-dir)
@@ -26,22 +26,22 @@ OUTPUTS (in --out-dir)
     breaks.tsv            every join cut: where, why, which pieces it made
     pieces.tsv            every piece: parent chromosome and coordinates
     summary.tsv           per haplotype: sequences/bp in and out
-    The unplaced_short FASTA from step 09 is not touched or copied.
+    The unplaced_short FASTA from step 05 is not touched or copied.
 
 JOINS ON THE REFERENCE'S UNPLACED SCAFFOLDS
     RagTag also concatenated grouse scaffolds that align to the same UNPLACED
-    ptarmigan scaffold (NW_ accessions); step 09 named those objects
+    ptarmigan scaffold (NW_ accessions); step 05 named those objects
     scaffold_N. Joinings were only scored on chr_* sequences only, so these joins
     were never tested
 
 MODES (--break)
-    unsupported              default: cut joins step 13 called unsupported
+    unsupported              default: cut joins step 06 called unsupported
     unsupported,ambiguous    also cut joins it could not call either way
     all                      cut EVERY RagTag join, i.e. return each chromosome
                              to its yahs scaffolds (no joins table needed)
 
 USAGE
-    python3 01_break_unsupported_joins.py --final-dir ... --ragtag-dir ... \
+    python3 07_break_unsupported_joins.py --final-dir ... --ragtag-dir ... \
         --joins-dir ... --out-dir ... [--dry-run] [--only PREFIX]
 """
 
@@ -296,7 +296,7 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--final-dir", required=True)
     ap.add_argument("--ragtag-dir", required=True)
-    ap.add_argument("--joins-dir", help="step 13 output (not needed with --break all)")
+    ap.add_argument("--joins-dir", help="step 06 output (not needed with --break all)")
     ap.add_argument("--w-log", help="W_relabel_log.tsv (default: <final-dir>/W_relabel_log.tsv)")
     ap.add_argument("--out-dir", required=True)
     ap.add_argument("--break", dest="brk", default="unsupported",
@@ -304,7 +304,7 @@ def main():
     ap.add_argument("--only", default=None, help="process only this prefix, e.g. GRPC_F5595_hap1")
     ap.add_argument("--keep-unplaced-joins", action="store_true",
                     help="do NOT cut joins inside scaffold_N objects (RagTag placements on the "
-                         "reference's unplaced scaffolds), which step 13 never scored")
+                         "reference's unplaced scaffolds), which step 06 never scored")
     ap.add_argument("--dry-run", action="store_true", help="report the plan, write nothing")
     args = ap.parse_args()
 
@@ -397,7 +397,7 @@ def main():
             sys.exit("ERROR: %d join(s) selected for cutting could not be placed; "
                      "nothing written." % unmatched)
 
-        # joins step 13 never saw: inside objects RagTag built on the
+        # joins step 06 never saw: inside objects RagTag built on the
         # reference's unplaced scaffolds (named scaffold_N, not chr_*)
         seen = {(p, r[chrom_col]) for p, (_h, rows) in tables.items()
                 for r in rows if len(r) > chrom_col}

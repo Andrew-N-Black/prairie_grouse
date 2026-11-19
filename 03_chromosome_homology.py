@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Chromosome correspondence between two reference genomes, from a whole-genome
-alignment. Companion to 04_chromosome_homology.sh.
+alignment. Companion to 03_chromosome_homology.sh.
 
 WHY THIS EXISTS
     Reference assemblies use two incompatible chromosome-naming conventions:
@@ -54,7 +54,7 @@ from collections import defaultdict
 
 # --------------------------------------------------------------------- input --
 def read_chr_map(path):
-    """accession -> chromosome name, as written by step 03."""
+    """accession -> chromosome name, as written by step 02."""
     out = {}
     with open(path) as fh:
         for line in fh:

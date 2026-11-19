@@ -1,30 +1,30 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: LARGE INVERSIONS ON THE Z CHROMOSOME
-# Step 06 — requires step 03 (pangenome/chr_Z graph) and, for the reference
-# path, step 05 (structural_variants/chr_Z/ref.txt).
+# Step 14 — requires step 12 (pangenome/chr_Z graph) and, for the reference
+# path, step 13 (structural_variants/chr_Z/ref.txt).
 #
-# Step 05's variant calls split bubbles larger than 100 kb, so inversions above
+# Step 13's variant calls split bubbles larger than 100 kb, so inversions above
 # that size were not resolved. This step finds them by whole-chromosome alignment:
 #   1. odgi paths -f: the sequence of every Z path in the graph (PanSN names,
 #      the same pieces the graph was built from), used for alignment, gaps
 #      (>= 10 N) and path ends
 #   2. minimap2 -x asm10: every Z path aligned to the reference Z path (the same
-#      LEPC male haplotype as step 05); each alignment block is forward or
+#      LEPC male haplotype as step 13); each alignment block is forward or
 #      reverse relative to the reference. (odgi untangle, the graph-native
 #      route, aborts on this graph with an sdsl assertion, so alignment is used.)
 #   3. optional: the reference Z aligned to the rock ptarmigan Z, so events are
 #      also reported in the ptarmigan coordinates the manuscript uses and tested
 #      for overlap with the 41-44 Mb segment
-#   4. 06_z_inversions.py: blocks running opposite to the rest of their path,
+#   4. 14_z_inversions.py: blocks running opposite to the rest of their path,
 #      merged and >= MIN_INV on the reference, clustered across haplotypes into
 #      events and classified as diagnostic / fixed between a species pair /
 #      polymorphic / private, with a breakpoint-quality flag
 #
 # USAGE (from the repo root; put minimap2 on PATH first)
 #   export PATH=/home/blackan/.conda/envs/zindel/bin:$PATH
-#   PTARMIGAN_FA=/path/to/ptarmigan.fna sbatch --export=ALL 06_z_inversions.sh
-#   STAGE=analyze sbatch --export=ALL 06_z_inversions.sh     # rerun step 4 only
+#   PTARMIGAN_FA=/path/to/ptarmigan.fna sbatch --export=ALL 14_z_inversions.sh
+#   STAGE=analyze sbatch --export=ALL 14_z_inversions.sh     # rerun step 4 only
 #
 # OUTPUT: ${OUT}/{summary.txt, inversion_events.tsv, inversion_calls.tsv,
 #                 validation_candidates.tsv, z_to_ref.paf, ref_to_ptarmigan.paf}
@@ -64,7 +64,7 @@ APPTAINER_BIN="$(command -v apptainer || command -v singularity || true)"
 cx() { local sif="$1"; shift; "$APPTAINER_BIN" exec --cleanenv --bind "${CLUSTER_SCRATCH}" "$sif" "$@"; }
 
 mkdir -p "$OUT" logs
-[[ -n "$REF" ]] || { echo "ERROR: no reference path (set REF or run step 05 first)"; exit 1; }
+[[ -n "$REF" ]] || { echo "ERROR: no reference path (set REF or run step 13 first)"; exit 1; }
 echo "$REF" > "${OUT}/ref.txt"
 echo ">>> Z inversions: reference ${REF}  $(date)"
 
@@ -96,7 +96,7 @@ if [[ "$STAGE" == "all" ]]; then
     grep -c '>' "${OUT}/z_paths.fa" | xargs echo "  Z paths:"
     grab "${OUT}/z_paths.fa" "$REF" "${OUT}/ref_Z.fa"
 
-    # 2. every path -> reference Z; convert to the table 06_z_inversions.py reads
+    # 2. every path -> reference Z; convert to the table 14_z_inversions.py reads
     minimap2 -x asm10 -t "$THREADS" --secondary=no "${OUT}/ref_Z.fa" "${OUT}/z_paths.fa" > "${OUT}/z_to_ref.paf"
     awk -F'\t' -v r="$REF" -v mb="$MIN_BLOCK" -v mq="$MIN_MAPQ" '
         BEGIN { OFS = "\t"; print "query.name","query.start","query.end","ref.name","ref.start","ref.end","score","inv","self.cov","n.th" }
@@ -118,5 +118,5 @@ if [[ "$STAGE" == "all" ]]; then
 fi
 
 # 4. call, cluster and classify
-python3 "${REPO}/06_z_inversions.py" --dir "$OUT" --min-inv "$MIN_INV" --merge "$MERGE" --flank "$FLANK"
+python3 "${REPO}/14_z_inversions.py" --dir "$OUT" --min-inv "$MIN_INV" --merge "$MERGE" --flank "$FLANK"
 echo ">>> done: $(date)"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Figure 7 (step 07): FST along the genome, pi and divergence by chromosome class, and the Z in
-rock ptarmigan coordinates. Run after 07_pixy_summary.py.
-usage: python3 07_fig7_diversity_divergence.py <summary dir> [<out prefix>]
+"""Figure 7 (step 20): FST along the genome, pi and divergence by chromosome class, and the Z in
+rock ptarmigan coordinates. Run after 20_pixy_summary.py.
+usage: python3 20b_fig7_diversity_divergence.py <summary dir> [<out prefix>]
 needs <summary dir>/{windows.tsv, groups.tsv, ref_to_ptarmigan.paf}"""
 import sys, os
 SUM = sys.argv[1]; OUTP = sys.argv[2] if len(sys.argv) > 2 else os.path.join(SUM, "Fig7_diversity_divergence")

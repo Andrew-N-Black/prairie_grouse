@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Helper for 14_z_markers.sh (species-diagnostic Z-chromosome markers).
+Helper for 22_z_markers.sh (species-diagnostic Z-chromosome markers).
 
   discover   Merge per-haplotype variant calls against the LEPC reference Z (paftools call) into
              one table of sites with each haplotype's allele, and keep the sites that separate

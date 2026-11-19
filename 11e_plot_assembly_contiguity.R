@@ -1,5 +1,5 @@
 # =============================================================================
-# plot_assembly_contiguity.R
+# 11e_plot_assembly_contiguity.R
 # USFWS report Objective 3, Figure 13: contiguity of the 46 haplotype-resolved,
 # pseudo-chromosome-scale prairie grouse assemblies (QUAST, final RagTag-ordered
 # assemblies after removal of unplaced scaffolds < 50 kb).

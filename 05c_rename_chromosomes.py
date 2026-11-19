@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Rename chromosomes consistently across every derived file in an assembly tree.
-Companion to 06_rename_chromosomes.sh.
+Companion to 05c_rename_chromosomes.sh.
 
 WHY THIS EXISTS
     Chromosome names ended up encoding a comparison rather than naming a
@@ -133,7 +133,7 @@ def rewrite_fasta(path, m, apply_):
         names = fasta_names_from_fai(path)
         if names is not None:
             return sum(1 for n in names if n in m), len(names)
-        # No index. Some FASTAs never get one — step 07 writes
+        # No index. Some FASTAs never get one — step 09 writes
         # *.excluded_from_autosomes.fasta without indexing it, and those carry
         # chr_Z and chr_W, so they run to ~90 MB each. Streaming 46 of them to
         # produce a number that is then discarded is the same mistake as reading

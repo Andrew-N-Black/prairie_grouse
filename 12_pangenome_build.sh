@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: 3-SPECIES PANGENOME + COMPARATIVE ANALYSIS
-# Step 03 — requires steps 01-02 of this repo, which in turn read the ASSEMBLY
-# pipeline's output (separate repo: prairie_grouse). The GRAPH is built from
-# step 01's pangenome_inputs/ FASTAs (Hi-C-unsupported RagTag joins cut);
+# Step 12 — requires steps 07-11, which in turn read the output of the
+# assembly steps (04-06). The GRAPH is built from
+# step 07's pangenome_inputs/ FASTAs (Hi-C-unsupported RagTag joins cut);
 # the TE and gene comparisons read the assembly pipeline's final_ptarmigan/
 # directly (hifiasm + yahs + RagTag pseudo-chromosomes, with Liftoff gene
 # annotations transferred from the rock ptarmigan reference), since cutting
@@ -26,16 +26,16 @@
 #
 # RUN MODES (all from the repo root)
 #   Whole genome, one job (original behaviour):
-#       sbatch 03_pangenome_build.sh
+#       sbatch 12_pangenome_build.sh
 #   Per chromosome (recommended; graphs are built independently per ptarmigan
 #   chromosome, which is valid because every haplotype is RagTag-oriented to
-#   the same reference, and pieces cut in step 01 keep their chromosome name):
-#       bash 03_pangenome_build.sh list            # writes pangenome/chromosomes.txt, prints the array command
-#       CHROM=chr_20 sbatch --export=ALL -t 2-00:00:00 --mem=128G 03_pangenome_build.sh   # one-chromosome test
-#       sbatch --export=ALL,CHROM=array --array=0-<N-1>%8 -t 4-00:00:00 --mem=250G 03_pangenome_build.sh
-#       STAGE=summary sbatch --export=ALL -t 4-00:00:00 03_pangenome_build.sh
+#   the same reference, and pieces cut in step 07 keep their chromosome name):
+#       bash 12_pangenome_build.sh list            # writes pangenome/chromosomes.txt, prints the array command
+#       CHROM=chr_20 sbatch --export=ALL -t 2-00:00:00 --mem=128G 12_pangenome_build.sh   # one-chromosome test
+#       sbatch --export=ALL,CHROM=array --array=0-<N-1>%8 -t 4-00:00:00 --mem=250G 12_pangenome_build.sh
+#       STAGE=summary sbatch --export=ALL -t 4-00:00:00 12_pangenome_build.sh
 #   The summary stage merges the per-chromosome graphs into one
-#   (pangenome/merged/pangenome.final.{og,gfa}, used by step 04) and runs the
+#   (pangenome/merged/pangenome.final.{og,gfa}, used by shortread_panel/shortread_introgression.sh) and runs the
 #   genome-wide steps (graph stats, panacus, TE annotation, species tables).
 #   Per-chromosome jobs run steps 1-5 only, into pangenome/<CHROM>/ and
 #   comparison/<CHROM>/. CHROM=unplaced collects every sequence not named
@@ -51,11 +51,11 @@
 #   chr_6 here is not chicken chromosome 6. Nothing in this script depends on
 #   that, because every assembly uses the same convention — but any result
 #   reported per chromosome has to be translated through the correspondence
-#   table the assembly repo's step 04 produces before it can be compared
+#   table step 03 produces before it can be compared
 #   against the galliform literature.
 #
 # USAGE:
-#   sbatch 03_pangenome_build.sh
+#   sbatch 12_pangenome_build.sh
 # =============================================================================
 #SBATCH --job-name=grouse_pangenome
 #SBATCH --output=logs/%x_%j.out
@@ -103,7 +103,7 @@ PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm"
 REF_TAG="ptarmigan"
 
 FINAL_DIR="${PROJECT_DIR}/final_${REF_TAG}"      # input: assemblies + Liftoff GFF3 (TE/gene tables)
-INPUT_DIR="${PROJECT_DIR}/pangenome_inputs"     # input: graph FASTAs from step 01
+INPUT_DIR="${PROJECT_DIR}/pangenome_inputs"     # input: graph FASTAs from step 07
 LIFTOFF_DIR="${PROJECT_DIR}/liftoff_${REF_TAG}"  # input: unmapped-feature lists
 PANGENOME_DIR="${PROJECT_DIR}/pangenome"
 TE_DIR="${PROJECT_DIR}/te_annotation"
@@ -186,16 +186,16 @@ TE_THREADS_PER_JOB=$(( THREADS / TE_PARALLEL_JOBS > 0 ? THREADS / TE_PARALLEL_JO
 
 mkdir -p logs "$PANGENOME_DIR" "$TE_DIR" "$COMPARE_DIR"
 
-# ---- `bash 03_pangenome_build.sh list`: chromosome list for the array ----------
+# ---- `bash 12_pangenome_build.sh list`: chromosome list for the array ----------
 if [[ "$MODE" == "list" ]]; then
     ls "${INPUT_DIR}"/*.pg_input.fasta.fai >/dev/null 2>&1 \
-        || { echo "ERROR: no ${INPUT_DIR}/*.pg_input.fasta.fai (run step 01)"; exit 1; }
+        || { echo "ERROR: no ${INPUT_DIR}/*.pg_input.fasta.fai (run step 07)"; exit 1; }
     cat "${INPUT_DIR}"/*.pg_input.fasta.fai | cut -f1 | sed -E 's/_p[0-9]+$//' \
         | grep '^chr_' | sort -u -V > "$CHROM_LIST"
     echo "unplaced" >> "$CHROM_LIST"
     N=$(wc -l < "$CHROM_LIST")
     echo "Wrote ${CHROM_LIST} (${N} partitions):"; tr '\n' ' ' < "$CHROM_LIST"; echo
-    echo "Submit: sbatch --export=ALL,CHROM=array --array=0-$((N-1))%8 -t 4-00:00:00 --mem=250G 03_pangenome_build.sh"
+    echo "Submit: sbatch --export=ALL,CHROM=array --array=0-$((N-1))%8 -t 4-00:00:00 --mem=250G 12_pangenome_build.sh"
     exit 0
 fi
 
@@ -242,7 +242,7 @@ if [[ ! -x "$PANACUS_BIN" ]]; then
     exit 1
 fi
 
-echo ">>> 03_pangenome_build.sh"
+echo ">>> 12_pangenome_build.sh"
 echo ">>> Node      : $(hostname)"
 echo ">>> CPUs      : ${THREADS}"
 echo ">>> Start time: $(date)"
@@ -320,7 +320,7 @@ for LINE in "${MANIFEST_ROWS[@]}"; do
             continue
         fi
 
-        # CHROM set: keep only that chromosome (and its step-01 pieces, <chrom>_pN);
+        # CHROM set: keep only that chromosome (and its step-07 pieces, <chrom>_pN);
         # CHROM=unplaced: keep every sequence not named chr_*.
         # PanSN haplotype field must be an integer (hap1 -> 1) or pggb warns
         awk -v pre="${PANSN_SAMPLE}#${HAP#hap}" -v chrom="$CHROM" '
@@ -343,7 +343,7 @@ fi
 if [[ "$N_HAPS" -lt 2 ]]; then
     echo "ERROR: fewer than 2 haplotype assemblies found — nothing to build a pangenome from."
     echo "       Looked in ${INPUT_DIR} for <SPECIES>_<SAMPLE>_hap{1,2}.pg_input.fasta"
-    echo "       Check that step 01 (01_break_unsupported_joins.sh) has"
+    echo "       Check that step 07 (07_break_unsupported_joins.sh) has"
     echo "       completed for at least one sample, and that REF_TAG matches."
     exit 1
 fi
@@ -472,7 +472,7 @@ fi   # end of: STAGE != te
 if [[ -n "$CHROM" ]]; then
     echo ""
     echo ">>> Chromosome ${CHROM} done: graph ${GFA}"
-    echo "    TE/gene tables and the merged graph come from: STAGE=summary sbatch 03_pangenome_build.sh"
+    echo "    TE/gene tables and the merged graph come from: STAGE=summary sbatch 12_pangenome_build.sh"
     echo ">>> End time: $(date)"
     exit 0
 fi

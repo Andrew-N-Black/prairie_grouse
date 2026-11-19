@@ -1,12 +1,12 @@
 #!/bin/bash
 # =============================================================================
-# PANGENOME INPUT PREP 02b — collate step 02 into one table and flag outliers
+# PANGENOME INPUT PREP 02b — collate step 11 into one table and flag outliers
 #
-#   bash 02b_collate_qc.sh          (login node, seconds)
+#   bash 11b_collate_qc.sh          (login node, seconds)
 #
 # OUTPUT ${PROJECT_DIR}/pangenome_qc/qc_summary.tsv, one row per haplotype:
 #   QV, k-mer completeness (Merqury), median HiFi depth, % of the haplotype in
-#   low/high-depth windows, number of joins cut in step 01, and REVIEW reasons.
+#   low/high-depth windows, number of joins cut in step 07, and REVIEW reasons.
 #
 # The REVIEW thresholds are triage cut-offs for deciding where to look first,
 # not pass/fail criteria; change them below to suit what the panel looks like.
@@ -28,7 +28,7 @@ COMP_DROP=5         # flag a haplotype whose k-mer completeness is this many
 MAX_LOW_PCT=5       # % of haplotype in < 0.5x-median windows
 MAX_HIGH_PCT=5      # % of haplotype in > 1.5x-median windows
 
-[[ -d "$QC_DIR" ]] || { echo "ERROR: $QC_DIR not found — run step 02 first"; exit 1; }
+[[ -d "$QC_DIR" ]] || { echo "ERROR: $QC_DIR not found — run step 11 first"; exit 1; }
 
 TMP=$(mktemp)
 trap 'rm -f "$TMP"' EXIT
@@ -46,7 +46,7 @@ for D in "$QC_DIR"/*/; do
 done
 [[ -s "$IN_SUMMARY" ]] && awk -F'\t' 'NR > 1 {print $1"\tcuts\t"$5}' "$IN_SUMMARY" >> "$TMP"
 
-[[ -s "$TMP" ]] || { echo "ERROR: no step 02 results found under $QC_DIR"; exit 1; }
+[[ -s "$TMP" ]] || { echo "ERROR: no step 11 results found under $QC_DIR"; exit 1; }
 
 MED_COMP=$(awk -F'\t' '$2 == "comp" {print $3}' "$TMP" | sort -g \
            | awk '{v[NR] = $1} END {if (NR) print v[int((NR + 1) / 2)]; else print 0}')

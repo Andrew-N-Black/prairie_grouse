@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # SLURM JOB SUBMISSION: STRUCTURAL VARIANTS THAT DIFFERENTIATE SPECIES
-# Step 05 — requires step 03 (per-chromosome graphs in pangenome/<CHROM>/ and
+# Step 13 — requires step 12 (per-chromosome graphs in pangenome/<CHROM>/ and
 # comparison/genome_length_by_haplotype.tsv).
 #
 # Answers two questions for the manuscript:
@@ -23,7 +23,7 @@
 #   d. count, per species, the haplotypes that carry the chromosome (total path
 #      length >= half the chromosome's median), so a female haplotype holding
 #      only a fragment of the Z is not counted as a missing Z call
-# Summary (STAGE=summary): 05_sv_summary.py classifies every SV allele
+# Summary (STAGE=summary): 13_sv_summary.py classifies every SV allele
 #   (INS / DEL / COMPLEX) and calls it
 #     - diagnostic for species X: fixed (or absent) in X and the opposite state
 #       fixed in both other species
@@ -35,9 +35,9 @@
 #   are diagnostic, and density per Mb of reference sequence).
 #
 # USAGE (from the repo root, on a login node)
-#   bash 05_structural_variants.sh submit           # array over chromosomes + summary job
-#   CHROM=chr_20 sbatch --export=ALL,STAGE=chrom 05_structural_variants.sh   # one-chromosome test
-#   STAGE=summary sbatch --export=ALL -c 4 --mem=32G -t 04:00:00 05_structural_variants.sh
+#   bash 13_structural_variants.sh submit           # array over chromosomes + summary job
+#   CHROM=chr_20 sbatch --export=ALL,STAGE=chrom 13_structural_variants.sh   # one-chromosome test
+#   STAGE=summary sbatch --export=ALL -c 4 --mem=32G -t 04:00:00 13_structural_variants.sh
 #
 # OUTPUT: ${SV_DIR}/<CHROM>/{ref.txt,haps_per_species.tsv,<CHROM>.sv.vcf.gz}
 #         ${SV_DIR}/summary/{sv_table.tsv.gz, sv_per_chromosome.tsv,
@@ -88,7 +88,7 @@ if [[ "$STAGE" == "submit" ]]; then
     [[ -s "$CHROM_LIST" ]] || { echo "ERROR: ${CHROM_LIST} not found"; exit 1; }
     [[ -s "$LENGTHS" ]]    || { echo "ERROR: ${LENGTHS} not found (run 03 STAGE=summary)"; exit 1; }
     for f in "$VG_SIF" "$PGGB_SIF"; do [[ -s "$f" ]] || { echo "ERROR: ${f} missing (accessory/pull_containers.sh)"; exit 1; }; done
-    [[ -s "${REPO}/05_sv_summary.py" ]] || { echo "ERROR: run from the repo root (05_sv_summary.py not found)"; exit 1; }
+    [[ -s "${REPO}/13_sv_summary.py" ]] || { echo "ERROR: run from the repo root (13_sv_summary.py not found)"; exit 1; }
     mkdir -p logs "$SV_DIR"
     N=$(grep -c . "$CHROM_LIST")
     jid=$(sbatch --parsable --export=ALL,STAGE=chrom --array=0-$((N - 1))%10 "$0")
@@ -167,7 +167,7 @@ fi
 # ----------------------------- summary ----------------------------------------
 if [[ "$STAGE" == "summary" ]]; then
     mkdir -p "${SV_DIR}/summary"
-    python3 "${REPO}/05_sv_summary.py" --sv-dir "$SV_DIR" --chroms "$CHROM_LIST" \
+    python3 "${REPO}/13_sv_summary.py" --sv-dir "$SV_DIR" --chroms "$CHROM_LIST" \
         --min-sv "$MIN_SV" --min-called-frac "$MIN_CALLED_FRAC" --equal-n "$EQUAL_N" --seed "$SEED" \
         --out "${SV_DIR}/summary"
     exit 0

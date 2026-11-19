@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-chrom_qc.py - flag mislabelled, chimeric and length-outlier chromosomes in a set of
+08_chrom_qc.py - flag mislabelled, chimeric and length-outlier chromosomes in a set of
 RagTag-scaffolded haplotype assemblies BEFORE building per-chromosome pangenome graphs.
 
 Inputs

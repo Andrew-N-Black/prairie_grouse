@@ -1,22 +1,22 @@
 #!/usr/bin/env Rscript
 # =============================================================================
-# 13f_plot_summary_trees.R — Figure 17: autosomal and Z summary trees beside the mitogenome tree
+# 15f_plot_summary_trees.R — Figure 17: autosomal and Z summary trees beside the mitogenome tree
 #
-# Inputs : autosomes.gcf.cf.tree, chrZ.gcf.cf.tree   (13e_summary_trees.sh; gCF on nodes)
-#          mito_tree.contree                         (12d_mito_tree.sh; UFBoot on nodes)
+# Inputs : autosomes.gcf.cf.tree, chrZ.gcf.cf.tree   (15e_summary_trees.sh; gCF on nodes)
+#          mito_tree.contree                         (21d_mito_tree.sh; UFBoot on nodes)
 # Output : Figure17_summary_trees.pdf / .png
 #
 # Install once:
 #   install.packages(c("BiocManager", "ape", "ggplot2", "patchwork"))
 #   BiocManager::install(c("ggtree", "treeio"))
 #
-# Run:  Rscript 13f_plot_summary_trees.R autosomes.gcf.cf.tree chrZ.gcf.cf.tree mito_tree.contree
+# Run:  Rscript 15f_plot_summary_trees.R autosomes.gcf.cf.tree chrZ.gcf.cf.tree mito_tree.contree
 #
 # Nuclear panels are drawn as cladograms (ASTRAL gives no terminal branch lengths); node labels
 # are gene concordance factors, the % of 100-kb window trees containing that branch; they are
 # always shown on species and species-pair nodes, because ASTRAL resolves a clade that most
 # windows contradict whenever it is the most frequent of the alternatives. The
-# mitogenome panel is drawn as in 12e (phylogram, UFBoot). Bars mark every species, and
+# mitogenome panel is drawn as in 21e (phylogram, UFBoot). Bars mark every species, and
 # every species pair, that is monophyletic in that tree.
 # =============================================================================
 suppressPackageStartupMessages({
@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 })
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 3) stop("usage: Rscript 13f_plot_summary_trees.R autosomes.gcf.cf.tree chrZ.gcf.cf.tree mito_tree.contree")
+if (length(args) < 3) stop("usage: Rscript 15f_plot_summary_trees.R autosomes.gcf.cf.tree chrZ.gcf.cf.tree mito_tree.contree")
 NUC_OUTGROUP  <- "Lmuta"
 MITO_OUTGROUP <- "PV239887.1"
 GCF_MIN  <- 50        # nuclear: gCF is always shown on species / species-pair nodes; elsewhere only if >= this
@@ -111,7 +111,7 @@ panel <- function(tr, title, cladogram, min_lab, scale_w = NULL) {
   # a known physical width and the gaps no longer shrink when anything else changes:
   # range = -0.25 .. 3.33 x tree width over a ~4-inch panel, i.e. tree width ~ 1.1 in.
   # Measured from the tips:  name 0.055 | names end ~0.42 | species bar 0.50, its label to ~0.85 |
-  # pair bar 0.98, its label to ~1.7. The mitogenome panel keeps the 12e layout.
+  # pair bar 0.98, its label to ~1.7. The mitogenome panel keeps the 21e layout.
   tip_off  <- xmax * (if (cladogram) 0.055 else 0.03)
   off_sp   <- xmax * (if (cladogram) 0.50 else 0.30)
   off_pair <- xmax * (if (cladogram) 0.98 else 0.62)

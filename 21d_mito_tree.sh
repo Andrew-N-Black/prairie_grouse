@@ -1,14 +1,14 @@
 #!/bin/bash
 # =============================================================================
-# 12d_mito_tree.sh — maximum-likelihood tree of the mitogenomes (report Figure 17C)
+# 21d_mito_tree.sh — maximum-likelihood tree of the mitogenomes (report Figure 17C)
 #
-# Run after 12c_mito_qc.sh qc + collect. Small job: login node or a short standby job.
-#   bash 12d_mito_tree.sh            # fetch outgroup, align, infer the tree
-#   Rscript 12e_plot_mito_tree_ggtree.R $CLUSTER_SCRATCH/GROUSE/grouse_asm/mitogenomes/tree/mito_tree.contree
+# Run after 21c_mito_qc.sh qc + collect. Small job: login node or a short standby job.
+#   bash 21d_mito_tree.sh            # fetch outgroup, align, infer the tree
+#   Rscript 21e_plot_mito_tree_ggtree.R $CLUSTER_SCRATCH/GROUSE/grouse_asm/mitogenomes/tree/mito_tree.contree
 #
-# Inputs : mitogenomes/mitogenomes_pass.fasta   (12c_mito_qc.sh collect; the 23 birds)
+# Inputs : mitogenomes/mitogenomes_pass.fasta   (21c_mito_qc.sh collect; the 23 birds)
 #          mitogenomes/reference/ref.fasta      (the GRPC reference MW574394.1, from
-#                                                12_mitohifi_array.sh setup)
+#                                                21_mitohifi_array.sh setup)
 #          rock ptarmigan mitogenome PV239887.1 (outgroup; fetched from NCBI once)
 # Method (as in report Appendix S1): MAFFT v7 FFT-NS-i (--maxiterate 1000);
 #          IQ-TREE 3 with ModelFinder (-m MFP) and 1,000 ultrafast bootstraps,
@@ -38,8 +38,8 @@ IQTREE_BIN="${IQTREE_BIN:-$(command -v iqtree3 || command -v iqtree2 || command 
 
 PASS="${MITO_DIR}/mitogenomes_pass.fasta"
 REF="${MITO_DIR}/reference/ref.fasta"
-[[ -s "$PASS" ]] || { echo "ERROR: $PASS missing; run: bash 12c_mito_qc.sh collect"; exit 1; }
-[[ -s "$REF" ]]  || { echo "ERROR: $REF missing; run: bash 12_mitohifi_array.sh setup"; exit 1; }
+[[ -s "$PASS" ]] || { echo "ERROR: $PASS missing; run: bash 21c_mito_qc.sh collect"; exit 1; }
+[[ -s "$REF" ]]  || { echo "ERROR: $REF missing; run: bash 21_mitohifi_array.sh setup"; exit 1; }
 mkdir -p "$OUT_DIR"
 
 OG="${OUT_DIR}/${OUTGROUP_ACC}.fasta"
@@ -69,4 +69,4 @@ echo ">>> IQ-TREE ($("$IQTREE_BIN" --version 2>&1 | grep -m1 -io 'version [0-9.]
 
 echo ">>> best model: $(grep -m1 'Best-fit model' "${OUT_DIR}/mito_tree.iqtree" 2>/dev/null || grep -m1 'Best-fit model' "${OUT_DIR}/mito_tree.log")"
 echo ">>> tree: ${OUT_DIR}/mito_tree.contree"
-echo "    plot: Rscript 12e_plot_mito_tree_ggtree.R ${OUT_DIR}/mito_tree.contree"
+echo "    plot: Rscript 21e_plot_mito_tree_ggtree.R ${OUT_DIR}/mito_tree.contree"

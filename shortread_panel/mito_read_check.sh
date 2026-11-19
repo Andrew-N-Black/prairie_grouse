@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# 12f_mito_read_check.sh — which mitochondrial lineage do a bird's own reads carry?
+# mito_read_check.sh — which mitochondrial lineage do a bird's own reads carry?
 #
 # For birds whose assembled mitogenome is suspect (e.g. GRPC/STGR placed in the LEPC clade),
 # count the LEPC vs GRPC/STGR alleles directly in the bird's reads at LEPC-diagnostic sites:
@@ -16,10 +16,10 @@
 #    (no mitochondrial contig there) are used. Alleles are counted at the diagnostic sites
 #    (mapping and base quality >= 20).
 #
-# USAGE (Gautschi; uses the step-14 conda env):
-#   bash 12f_mito_read_check.sh F5594 F5436 F5440 F5596 F5547 F5462      # login node: a few birds
+# USAGE (Gautschi; uses the step-22 conda env):
+#   bash mito_read_check.sh F5594 F5436 F5440 F5596 F5547 F5462      # login node: a few birds
 #   sbatch -A dewoody -p cpu -q standby -t 04:00:00 -c 16 --mem=16G -o logs/%x_%j.out \
-#          -J mito_reads 12f_mito_read_check.sh F5594 F5436 F5440 F5596 F5547 F5462
+#          -J mito_reads mito_read_check.sh F5594 F5436 F5440 F5596 F5547 F5462
 # Output: ${OUT}/mito_read_check.tsv (one row per bird) and per-site counts per bird.
 # =============================================================================
 set -euo pipefail

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Helper for 13d_thex_rescue.sh.
+Helper for 15d_thex_rescue.sh.
 
-  prune  For every window that got no tree in step 13, write a copy without the haplotypes
+  prune  For every window that got no tree in step 15, write a copy without the haplotypes
          that barely cover it (< --min-cov aligned), so the window can be retried with the
          remaining taxa. The outgroup and reference are never removed; a window is not
          retried if more than --max-drop haplotypes would go or if any species would be
          left with fewer than --min-per-species haplotypes.
-  merge  Move the retried windows that passed trimal + the pairwise filter into step 13's
-         pairwise_filtered_windows/ (replacing the -DROPPED placeholder), so step 13's
+  merge  Move the retried windows that passed trimal + the pairwise filter into step 15's
+         pairwise_filtered_windows/ (replacing the -DROPPED placeholder), so step 15's
          iqtree and summarize stages pick them up unchanged.
 """
 import argparse

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Step 05 summary: classify pangenome SVs by species and compare the Z with the autosomes.
+"""Step 13 summary: classify pangenome SVs by species and compare the Z with the autosomes.
 
 Reads, per chromosome, <sv-dir>/<CHROM>/<CHROM>.sv.vcf.gz (vg deconstruct + vcfbub),
 ref.txt (reference path and its length) and haps_per_species.tsv. Python 3 stdlib only.

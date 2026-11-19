@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# STEP 13: WINDOWED PHYLOGENIES ACROSS THE 23 GROUSE GENOMES FOR TREE HOUSE EXPLORER
+# STEP 15: WINDOWED PHYLOGENIES ACROSS THE 23 GROUSE GENOMES FOR TREE HOUSE EXPLORER
 #
 # Builds a Tree Viewer input for THEx (Tree House Explorer, Harris et al. 2022 MBE,
 # https://github.com/harris-2374/THEx) from the 46 phased haplotype assemblies
@@ -27,7 +27,7 @@
 # WHY A REFERENCE-PROJECTED ALIGNMENT
 #   THExBuilder starts from one multiple alignment per chromosome in which every
 #   sample has the same length. A whole-genome MSA of 47 genomes (Cactus, or the
-#   grouse_pangenome step-03 PGGB graph) would also do, but projection onto one haplotype is what the
+#   step-12 PGGB graph) would also do, but projection onto one haplotype is what the
 #   THEx authors used (Foley et al. 2021), needs nothing beyond minimap2, and is
 #   insensitive to the RagTag misjoins in final_ptarmigan: a query's scaffolding does
 #   not matter, only where its sequence aligns. Only the REFERENCE's own chromosome
@@ -81,13 +81,13 @@
 #   check.
 #
 # USAGE (Negishi, from the repo root so assembly_manifest.tsv is found)
-#   bash 13_thex_phylogeny.sh transfer     # login node: pull assemblies from Gautschi
-#   bash 13_thex_phylogeny.sh setup        # login node: THEx conda env (thexb, iqtree2, trimal)
-#   bash 13_thex_phylogeny.sh pick-ref     # login node, seconds: shows the choice
-#   bash 13_thex_phylogeny.sh submit       # submits stages 2-5 as one dependency chain
-#   bash 13_thex_phylogeny.sh status       # progress counts
+#   bash 15_thex_phylogeny.sh transfer     # login node: pull assemblies from Gautschi
+#   bash 15_thex_phylogeny.sh setup        # login node: THEx conda env (thexb, iqtree2, trimal)
+#   bash 15_thex_phylogeny.sh pick-ref     # login node, seconds: shows the choice
+#   bash 15_thex_phylogeny.sh submit       # submits stages 2-5 as one dependency chain
+#   bash 15_thex_phylogeny.sh status       # progress counts
 #   Any stage can be (re)submitted alone, e.g.
-#     sbatch -A fnrdewoody -p cpu --export=ALL -N 1 -c 128 -t 2-00:00:00 13_thex_phylogeny.sh prep
+#     sbatch -A fnrdewoody -p cpu --export=ALL -N 1 -c 128 -t 2-00:00:00 15_thex_phylogeny.sh prep
 #   Every stage is resume-safe: finished haplotypes, chromosomes and windows are skipped.
 #   Then copy work/thex_inputs/ to the laptop and run `thex` (see the end of this header).
 #
@@ -95,7 +95,7 @@
 #   shared between clusters, so once is enough:
 #     ssh-keygen -t ed25519 && cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
 #   If that is not allowed, move final_ptarmigan/ with Globus (Purdue endpoints) or via
-#   /depot/<lab>, into ${IN_DIR}, then run `bash 13_thex_phylogeny.sh transfer` anyway:
+#   /depot/<lab>, into ${IN_DIR}, then run `bash 15_thex_phylogeny.sh transfer` anyway:
 #   with the files present it only verifies and indexes them.
 #
 # VIEWING (laptop): conda create -n thex_env -c ajharris_2374 -c bioconda -c conda-forge thex
@@ -117,8 +117,8 @@ unset LD_PRELOAD
 # =============================================================================
 REPO_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
 MANIFEST="${MANIFEST:-${REPO_DIR}/assembly_manifest.tsv}"
-SCRIPT="${REPO_DIR}/13_thex_phylogeny.sh"
-PYHELP="${REPO_DIR}/13_thex_phylogeny.py"
+SCRIPT="${REPO_DIR}/15_thex_phylogeny.sh"
+PYHELP="${REPO_DIR}/15_thex_phylogeny.py"
 
 # ---- source (Gautschi) ----
 GAUTSCHI_HOST="${GAUTSCHI_HOST:-gautschi.rcac.purdue.edu}"
@@ -606,7 +606,7 @@ Coordinates: ${REF_ID} (chromosome names as in THEx: '_' -> '-')
 Tips: 46 haplotypes (<SPECIES>_<SAMPLE>_hap<N>) + ${OUTGROUP_NAME} (rock ptarmigan, outgroup; trees rooted on it)
 Windows: ${WINDOW}; trimal -gt ${TRIMAL_GT}; pairwise filter ${PW_FILTER} (coverage ${PW_COV}); IQ-TREE ${IQT_MODEL}, UFBoot ${IQT_BOOT} (.contree)
 
-grouse_TreeViewer_input.xlsx   Tree Viewer file. TopologyID = species-level topology (see 13_thex_phylogeny.sh header)
+grouse_TreeViewer_input.xlsx   Tree Viewer file. TopologyID = species-level topology (see 15_thex_phylogeny.sh header)
 chromosome_lengths.bed         load as the chromosome-length file
 reference_genes.gff            genes on ${REF_ID} (ptarmigan RefSeq if Lmuta, else its Liftoff GFF3), load as the GFF/GTF annotation
 grouse_thex.topology_summary.tsv, .topology_by_chromosome.tsv, .window_status.tsv

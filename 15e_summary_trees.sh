@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# STEP 13e: ONE SUMMARY TREE FOR THE AUTOSOMES AND ONE FOR THE Z (report Figure 17)
+# STEP 15e: ONE SUMMARY TREE FOR THE AUTOSOMES AND ONE FOR THE Z (report Figure 17)
 #
-# Run after 13_thex_phylogeny.sh (and 13d, if used) on Negishi. Nothing is realigned:
-# the step-13 window trees (work/iqtree/<chrom>/<window>.contree) are summarised.
+# Run after 15_thex_phylogeny.sh (and 15d, if used) on Negishi. Nothing is realigned:
+# the step-15 window trees (work/iqtree/<chrom>/<window>.contree) are summarised.
 #
 #   collect   concatenate the window trees: autosomes (every chromosome except Z) and Z
 #   astral    wASTRAL (ASTER; Zhang & Mirarab 2022): coalescent summary tree that weights
@@ -33,10 +33,10 @@
 #   {autosomes,chrZ}.gcf.cf.stat          gCF / gDF1 / gDF2 / gDFP per branch
 #
 # USAGE (Negishi, repo root)
-#   bash 13e_summary_trees.sh setup
-#   bash 13e_summary_trees.sh submit
+#   bash 15e_summary_trees.sh setup
+#   bash 15e_summary_trees.sh submit
 #   then copy work/summary_trees/*.cf.tree and the 12d mito tree to the laptop and run
-#   Rscript 13f_plot_summary_trees.R autosomes.gcf.cf.tree chrZ.gcf.cf.tree mito_tree.contree
+#   Rscript 15f_plot_summary_trees.R autosomes.gcf.cf.tree chrZ.gcf.cf.tree mito_tree.contree
 # =============================================================================
 #SBATCH -A fnrdewoody
 #SBATCH -p cpu
@@ -47,15 +47,15 @@ set -euo pipefail
 unset LD_PRELOAD
 
 REPO_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
-SCRIPT="${REPO_DIR}/13e_summary_trees.sh"
+SCRIPT="${REPO_DIR}/15e_summary_trees.sh"
 PROJECT_DIR="${PROJECT_DIR:-${CLUSTER_SCRATCH}/GROUSE/grouse_thex}"
 WORK="${PROJECT_DIR}/work"
 IQ_DIR="${WORK}/iqtree"
 OUT="${WORK}/summary_trees"
-THEX_ENV="${THEX_ENV:-${PROJECT_DIR}/envs/thex_env}"     # IQ-TREE 2 for --gcf (from step 13 setup)
+THEX_ENV="${THEX_ENV:-${PROJECT_DIR}/envs/thex_env}"     # IQ-TREE 2 for --gcf (from step 15 setup)
 ASTER_ENV="${ASTER_ENV:-${PROJECT_DIR}/envs/aster_env}"
 OUTGROUP_NAME="${OUTGROUP_NAME:-Lmuta}"
-Z_DIR_RE="${Z_DIR_RE:-^chr[-_]Z$}"                       # step-13 chromosome folder of the Z
+Z_DIR_RE="${Z_DIR_RE:-^chr[-_]Z$}"                       # step-15 chromosome folder of the Z
 THREADS="${THREADS:-${SLURM_CPUS_PER_TASK:-8}}"
 ACCOUNT="${ACCOUNT:-fnrdewoody}"
 PARTITION="${PARTITION:-cpu}"
@@ -90,11 +90,11 @@ stage_setup() {
     fi
     find_astral
     log "astral: $ASTRAL_BIN  support flag: ${SUPPORT_FLAG[*]:-none}"
-    [[ -x "${THEX_ENV}/bin/iqtree2" ]] || die "IQ-TREE 2 not in ${THEX_ENV} (run step 13 setup)"
+    [[ -x "${THEX_ENV}/bin/iqtree2" ]] || die "IQ-TREE 2 not in ${THEX_ENV} (run step 15 setup)"
 }
 
 stage_collect() {
-    [[ -d "$IQ_DIR" ]] || die "no step-13 trees in $IQ_DIR"
+    [[ -d "$IQ_DIR" ]] || die "no step-15 trees in $IQ_DIR"
     mkdir -p "$OUT"
     : > "${OUT}/autosomes.windows.trees"; : > "${OUT}/chrZ.windows.trees"
     : > "${OUT}/autosomes.windows.list"; : > "${OUT}/chrZ.windows.list"

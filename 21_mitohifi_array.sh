@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# 12_mitohifi_array.sh
+# 21_mitohifi_array.sh
 # One complete, circularised, rotated and annotated mitogenome per individual,
 # assembled from the HiFi reads with MitoHiFi v3, replacing the hifiasm chr_MT.
 #
@@ -21,15 +21,15 @@
 #   - rotates the result to start at tRNA-Phe and annotates it (MitoFinder,
 #     vertebrate mitochondrial code 2).
 #
-# ONE-TIME SETUP (login node), from the prairie_grouse repo root:
-#   bash 12_mitohifi_array.sh setup
+# ONE-TIME SETUP (login node), from the repo root:
+#   bash 21_mitohifi_array.sh setup
 #
 # RUN (array over manifest rows; 23 birds):
 #   N=$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)
-#   sbatch --array=0-$((N-1))%8 12_mitohifi_array.sh
+#   sbatch --array=0-$((N-1))%8 21_mitohifi_array.sh
 #
 # SUMMARY (login node, after the array):
-#   bash 12_mitohifi_array.sh summary
+#   bash 21_mitohifi_array.sh summary
 # =============================================================================
 #SBATCH -A dewoody
 #SBATCH -p cpu
@@ -47,7 +47,7 @@ unset LD_PRELOAD
 
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm"
 MANIFEST="${SLURM_SUBMIT_DIR:-$PWD}/assembly_manifest.tsv"
-FILT_DIR="${PROJECT_DIR}/hifi_filtered"            # <SAMPLE>/*.filt.fastq.gz (step 02)
+FILT_DIR="${PROJECT_DIR}/hifi_filtered"            # <SAMPLE>/*.filt.fastq.gz (step 04)
 MITO_DIR="${PROJECT_DIR}/mitogenomes"
 REF_DIR="${MITO_DIR}/reference"
 SIF="${PROJECT_DIR}/containers/mitohifi.sif"

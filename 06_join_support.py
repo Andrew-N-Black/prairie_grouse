@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # =============================================================================
-# 11_join_support.py — Hi-C support for every RagTag join
+# 06_join_support.py — Hi-C support for every RagTag join
 #
 # RagTag builds each pseudo-chromosome by concatenating yahs scaffolds in the
 # order the rock ptarmigan reference implies, inserting a 100 bp gap (gap type

@@ -1,10 +1,10 @@
 #!/bin/bash
 # =============================================================================
 # DOWNLOAD THE CHICKEN REFERENCE (GCF_016699485.2 / GRCg7b)
-# Step 01 — run once. Needed only by 04_chromosome_homology.sh.
+# Step 01 — run once. Needed only by 03_chromosome_homology.sh.
 #
 # WHY THE CHICKEN GENOME IS STILL HERE
-#   These assemblies are ordered against the rock ptarmigan (step 03), not
+#   These assemblies are ordered against the rock ptarmigan (step 02), not
 #   against chicken. Chicken is downloaded for exactly one purpose: to work out
 #   what each ptarmigan chromosome number MEANS.
 #
@@ -16,7 +16,7 @@
 #   unusable on its own — it has to be tied to the chicken karyotype by
 #   alignment before it can be related to anything in the literature.
 #
-#   Step 04 does that alignment. This script supplies its target genome and the
+#   Step 03 does that alignment. This script supplies its target genome and the
 #   accession -> chromosome-name map it joins on. Nothing else in the pipeline
 #   reads the chicken genome: RagTag and Liftoff both use ptarmigan.
 #
@@ -62,8 +62,8 @@ unset LD_PRELOAD
 PROJECT_DIR="${CLUSTER_SCRATCH}/GROUSE/grouse_asm"
 REF_DIR="${PROJECT_DIR}/ref"
 
-# Hardcoded, unlike the ptarmigan accession in step 03. GRCg7b is a long-stable
-# assembly and the directory name is not going to move under us; step 03 resolves
+# Hardcoded, unlike the ptarmigan accession in step 02. GRCg7b is a long-stable
+# assembly and the directory name is not going to move under us; step 02 resolves
 # its directory at runtime because that accession was new at the time.
 ASM_DIR="GCF_016699485.2_bGalGal1.mat.broiler.GRCg7b"
 BASE_URL="https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/016/699/485/${ASM_DIR}"
@@ -72,7 +72,7 @@ REF_FASTA="${REF_DIR}/${ASM_DIR}_genomic.fna"
 REF_REPORT="${REF_DIR}/${ASM_DIR}_assembly_report.txt"
 REF_CHR_MAP="${REF_DIR}/${ASM_DIR}.chr_map.tsv"
 
-# Same safety net as step 03. GRCg7b names its assembled molecules 1..39, Z, W,
+# Same safety net as step 02. GRCg7b names its assembled molecules 1..39, Z, W,
 # MT, so nothing should match — but if NCBI ever re-releases it with a prefix,
 # silently producing chr_CHR1 downstream would be worse than stripping here.
 NAME_STRIP_REGEX="^(SUPER|super|Super|SCAFFOLD|CHR|Chr|chr|LG|lg)[_-]?"
@@ -130,8 +130,8 @@ fi
 
 # =============================================================================
 # CHROMOSOME-NAME MAP
-# Identical construction to step 03, so the two maps can be joined on without
-# any per-reference special-casing in step 04. Report columns:
+# Identical construction to step 02, so the two maps can be joined on without
+# any per-reference special-casing in step 03. Report columns:
 #   1 Sequence-Name, 2 Sequence-Role, ..., 7 RefSeq-Accn
 # Assembled molecules only: unplaced and unlocalised scaffolds are deliberately
 # left out, because a chromosome correspondence computed against them is noise.
@@ -156,7 +156,7 @@ else
 fi
 echo "    ${REF_CHR_MAP}: $(wc -l < "$REF_CHR_MAP") assembled molecules"
 
-# Step 04 and step 05 both build names as "chr_" + column 2, so a name that
+# Step 03 and step 05 both build names as "chr_" + column 2, so a name that
 # already begins with "chr" would produce chr_chr1 and break every name
 # comparison. Catch it here rather than three steps downstream.
 if awk -F'\t' '$2 ~ /^[Cc][Hh][Rr]/ {found=1} END {exit !found}' "$REF_CHR_MAP"; then
@@ -165,7 +165,7 @@ if awk -F'\t' '$2 ~ /^[Cc][Hh][Rr]/ {found=1} END {exit !found}' "$REF_CHR_MAP";
     awk -F'\t' '$2 ~ /^[Cc][Hh][Rr]/ {printf "       %s -> %s\n", $1, $2}' \
         "$REF_CHR_MAP" | head -5
     echo "     Extend NAME_STRIP_REGEX at the top of this script, or edit column 2"
-    echo "     of ${REF_CHR_MAP}, before running step 04."
+    echo "     of ${REF_CHR_MAP}, before running step 03."
 fi
 
 # =============================================================================
@@ -196,6 +196,6 @@ echo ""
 echo ">>> Step 01 complete — $(date)"
 echo ""
 echo "  Next:"
-echo "    bash   03_ptarmigan_reference.sh    # the working reference"
-echo "    sbatch 04_chromosome_homology.sh    # needs both references"
+echo "    bash   02_ptarmigan_reference.sh    # the working reference"
+echo "    sbatch 03_chromosome_homology.sh    # needs both references"
 echo "============================================================"

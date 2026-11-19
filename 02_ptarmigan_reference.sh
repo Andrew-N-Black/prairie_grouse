@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # DOWNLOAD THE ROCK PTARMIGAN REFERENCE (GCF_023343835.1) + ANNOTATION
-# Step 03 — the reference this pipeline actually assembles against.
+# Step 02 — the reference this pipeline actually assembles against.
 #
 # WHY A SECOND REFERENCE
 #   Every assembly in this project was ordered against chicken (GRCg7b), a
@@ -43,17 +43,17 @@
 #   NCBI and you want to supply the name by hand.
 #
 # RUNTIME: minutes, and it is a download — run it on a login node:
-#     bash 03_ptarmigan_reference.sh
+#     bash 02_ptarmigan_reference.sh
 #
 #   or as a job:
-#     sbatch 03_ptarmigan_reference.sh
+#     sbatch 02_ptarmigan_reference.sh
 #
 # OUTPUT, under ${PROJECT_DIR}/ref:
 #   <ASM_DIR>_genomic.fna            reference FASTA (RagTag + Liftoff target)
 #   <ASM_DIR>_genomic.gff            RefSeq annotation (Liftoff source)
 #   <ASM_DIR>_assembly_report.txt    NCBI assembly report
 #   <ASM_DIR>.chr_map.tsv            accession -> chromosome name
-#   ptarmigan_asm_dir.txt            the resolved directory name, for steps 09-13
+#   ptarmigan_asm_dir.txt            the resolved directory name, for steps 09c-15
 # =============================================================================
 #SBATCH --job-name=ptarmigan_ref_dl
 #SBATCH --output=logs/%x_%j.out
@@ -95,7 +95,7 @@ ACCESSION="GCF_023343835.1"
 # name by hand, e.g. ASM_DIR_OVERRIDE="GCF_023343835.1_bLagMut1_primary".
 ASM_DIR_OVERRIDE=""
 
-# Written so steps 09-13 can read the resolved name instead of each repeating
+# Written so steps 09c-15 can read the resolved name instead of each repeating
 # the lookup.
 ASM_DIR_RECORD="${REF_DIR}/ptarmigan_asm_dir.txt"
 
@@ -124,7 +124,7 @@ done
 # =============================================================================
 # RESOLVE THE ASSEMBLY DIRECTORY NAME
 # =============================================================================
-# Builds the parent URL from the accession digits the same way step 02 does,
+# Builds the parent URL from the accession digits the same way step 04 does,
 # then reads the listing. Every stage swallows failure explicitly: a failing
 # command substitution in an assignment is fatal under `set -e` + `pipefail`,
 # which is exactly how an early version of the BUSCO step in this pipeline died.
@@ -211,7 +211,7 @@ REF_CHR_MAP="${REF_DIR}/${ASM_DIR}.chr_map.tsv"
 # =============================================================================
 # Each file is fetched to a .part and only moved into place once wget succeeds,
 # so an interrupted download can never be mistaken for a complete one by the
-# `-s` guards in steps 09-13.
+# `-s` guards in steps 09c-15.
 fetch_gz() {
     local url="$1" dest="$2" label="$3"
     if [[ -s "$dest" ]]; then
@@ -281,7 +281,7 @@ fi
 
 # =============================================================================
 # CHROMOSOME-NAME MAP
-# Identical construction to steps 02 and 05 so chr_* names mean the same
+# Identical construction to steps 04 and 05 so chr_* names mean the same
 # thing in both trees: RefSeq accession -> chromosome name, assembled molecules
 # only. Report columns: 1 Sequence-Name, 2 Sequence-Role, ..., 7 RefSeq-Accn.
 # =============================================================================
@@ -291,9 +291,9 @@ if [[ ! -s "$REF_CHR_MAP" ]]; then
     # Sequence-Name is whatever the submitter used. Sanger/VGP curated assemblies
     # (which this is) name curated scaffolds SUPER_1, SUPER_2, ..., SUPER_Z,
     # SUPER_W. Left alone, step 05 would prefix "chr_" and produce chr_SUPER_1,
-    # which (a) is invisible to step 07's EXTRACT_SEQS=(chr_W chr_Z chr_MT), so
+    # which (a) is invisible to step 09's EXTRACT_SEQS=(chr_W chr_Z chr_MT), so
     # the sex and organelle sequences would never be split out, and (b) fails the
-    # chr_(\d+) regex in 09_busco_plots.py's natural_chr_key, so every chromosome
+    # chr_(\d+) regex in 09c_busco_plots.py's natural_chr_key, so every chromosome
     # sorts into the unplaced-scaffold bucket and the karyotype ordering silently
     # collapses. Strip the prefix here, once, so chr_1 / chr_Z / chr_W / chr_MT
     # are what every downstream step sees.
@@ -325,7 +325,7 @@ fi
 N_CHR=$(wc -l < "$REF_CHR_MAP")
 echo "  ${REF_CHR_MAP}: ${N_CHR} assembled molecules"
 
-# Steps 05 and 08 build names as "chr_" + column 2. If the submitter already named
+# Steps 05 and 09b build names as "chr_" + column 2. If the submitter already named
 # sequences "chr1" or "1chr", that would yield chr_chr1 and break every
 # downstream name comparison against the chicken tree. Catch it here.
 if awk -F'\t' '$2 ~ /^[Cc][Hh][Rr]/ {found=1} END {exit !found}' "$REF_CHR_MAP"; then
@@ -412,14 +412,14 @@ awk -F'\t' -v map="$REF_CHR_MAP" '
             print "     let step 05 name grouse chromosomes from it until the"
             print "     correspondence has been computed:"
             print ""
-            print "         sbatch 04_chromosome_homology.sh"
+            print "         sbatch 03_chromosome_homology.sh"
             print ""
             print "     That aligns this reference to chicken and writes a homology"
             print "     map, which step 05 can then use (CHR_NAMING=homology) so chr_N"
             print "     means the same chromosome in both trees."
         } else {
             printf "  -> %d of %d pairs out of size order: numbering looks homology-based.\n", viol, pairs
-            print "     Running 04_chromosome_homology.sh is still worthwhile to confirm."
+            print "     Running 03_chromosome_homology.sh is still worthwhile to confirm."
         }
     }
 ' "${REF_FASTA}.fai"
@@ -451,10 +451,10 @@ echo "    - Is there a chromosome matching chicken chr2 (~149 Mb)? If not, that"
 echo "      chromosome is split here, which is a second karyotype difference."
 echo ""
 echo "    Size matching is a hypothesis generator ONLY. Two chromosomes can"
-echo "    share a length without sharing ancestry. 04_chromosome_homology.sh"
+echo "    share a length without sharing ancestry. 03_chromosome_homology.sh"
 echo "    settles it by alignment; do not draw conclusions from the sizes alone."
 
-# Record the resolved name for steps 09-13.
+# Record the resolved name for steps 09c-15.
 printf '%s\n' "$ASM_DIR" > "$ASM_DIR_RECORD"
 
 echo ""

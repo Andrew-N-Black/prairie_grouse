@@ -1,8 +1,8 @@
 # =============================================================================
-# 02d_plot_qc_report.R -- Merqury k-mer completeness and QV (and HiFi depth) of
+# 11d_plot_qc_report.R -- Merqury k-mer completeness and QV (and HiFi depth) of
 # the 46 haplotype assemblies used as pangenome input.
-# USFWS report Figure S8. Input: pangenome_qc_summary.tsv from 02c_qc_report_table.sh (copy it
-# locally). Style matches plot_assembly_contiguity.R (Figure S5): one row per
+# USFWS report Figure S8. Input: pangenome_qc_summary.tsv from 11c_qc_report_table.sh (copy it
+# locally). Style matches 11e_plot_assembly_contiguity.R (Figure S5): one row per
 # bird, grouped by species; hap1 / hap2 / both; W-bearing haplotypes open.
 #   install.packages(c("ggplot2", "patchwork"))
 # Outputs: FigS_merqury_qc.pdf / .png, and a summary printed for the text.

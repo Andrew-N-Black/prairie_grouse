@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # RENAME THE CHROMOSOMES IN THE PTARMIGAN-SCAFFOLDED ASSEMBLIES
-# Step 06 — run after 05, and after 07/08/11 if you have already run them.
+# Step 05c — run after 05, and after 09/09b/06 if you have already run them.
 #
 # ONLY NEEDED if step 05 was run with CHR_NAMING=homology. Its default is
 # CHR_NAMING=native, which produces these names directly and makes this step a
@@ -50,8 +50,8 @@
 #   keep the old names; they are descriptive output, not inputs to anything.
 #
 # USAGE
-#   bash 06_rename_chromosomes.sh              # dry run, prints the plan
-#   APPLY=true bash 06_rename_chromosomes.sh   # do it
+#   bash 05c_rename_chromosomes.sh              # dry run, prints the plan
+#   APPLY=true bash 05c_rename_chromosomes.sh   # do it
 # =============================================================================
 #SBATCH --job-name=grouse_rename_chr
 #SBATCH --output=logs/%x_%j.out
@@ -86,7 +86,7 @@ CUSTOM_MAP="${CUSTOM_MAP:-}"        # only for SCHEME=custom
 
 # Rewrite the Hi-C CRAM headers too. Sequence data is untouched, so the CRAM's
 # per-sequence M5 checksums stay valid — only the @SQ SN names move. Set false
-# to skip (the CRAMs are only needed for contact maps and step 11).
+# to skip (the CRAMs are only needed for contact maps and step 06).
 DO_CRAM="${DO_CRAM:-true}"
 
 HOMOLOGY_DIR="${PROJECT_DIR}/qc/chromosome_homology"
@@ -95,14 +95,14 @@ ASM_DIR_RECORD="${REF_DIR}/ptarmigan_asm_dir.txt"
 
 OUT_DIR="${PROJECT_DIR}/qc_${REF_TAG}/chromosome_naming"
 SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-RENAME_PY="${SCRIPT_DIR}/06_rename_chromosomes.py"
+RENAME_PY="${SCRIPT_DIR}/05c_rename_chromosomes.py"
 
 mkdir -p logs "$OUT_DIR"
 
 # =============================================================================
 # PRE-FLIGHT
 # =============================================================================
-[[ -f "$RENAME_PY" ]] || { echo "ERROR: 06_rename_chromosomes.py must sit next to this file."; exit 1; }
+[[ -f "$RENAME_PY" ]] || { echo "ERROR: 05c_rename_chromosomes.py must sit next to this file."; exit 1; }
 for BIN in samtools python3 awk; do
     command -v "$BIN" >/dev/null 2>&1 || { echo "ERROR: '${BIN}' not on PATH."; exit 1; }
 done
@@ -338,7 +338,7 @@ if [[ "$APPLY" == true ]]; then
     echo ">>> Rename applied: $(date)"
     echo "  mapping       : ${MAP}"
     echo "  undo with     : CUSTOM_MAP=${OUT_DIR}/rename.${SCHEME}.reverse.tsv \\"
-    echo "                    SCHEME=custom APPLY=true bash 06_rename_chromosomes.sh"
+    echo "                    SCHEME=custom APPLY=true bash 05c_rename_chromosomes.sh"
     echo "  homology table: ${TABLE}"
     echo ""
     echo "  Pretext contact maps still carry the OLD names and cannot be edited."
@@ -346,7 +346,7 @@ if [[ "$APPLY" == true ]]; then
     echo "    samtools view -h -T <final.fasta> <qc_${REF_TAG}/S.H.hic2final.cram> \\"
     echo "      | PretextMap -o <qc_${REF_TAG}/S.H.pretext> --sortby length --sortorder descend --mapq 20"
     echo ""
-    echo "  If 10/11 already ran, rerun 09_busco_plots.sh so the"
+    echo "  If 10/06 already ran, rerun 09c_busco_plots.sh so the"
     echo "  karyotype and synteny figures carry the new names."
 else
     echo ">>> DRY RUN — nothing was changed: $(date)"
@@ -354,6 +354,6 @@ else
     echo "  homology table written anyway: ${TABLE}"
     echo ""
     echo "  Review the mapping, then:"
-    echo "    APPLY=true bash 06_rename_chromosomes.sh"
+    echo "    APPLY=true bash 05c_rename_chromosomes.sh"
 fi
 echo "============================================================"

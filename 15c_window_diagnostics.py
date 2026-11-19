@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Step 13c: why does a stretch of a chromosome have no THEx trees? Per-window diagnostics.
+Step 15c: why does a stretch of a chromosome have no THEx trees? Per-window diagnostics.
 
-    python3 13c_window_diagnostics.py <PROJECT_DIR>/work chr_Z [window_bp]
+    python3 15c_window_diagnostics.py <PROJECT_DIR>/work chr_Z [window_bp]
 
 Standard library only (runs with the system python3). For every window of one chromosome it
 reports, from files the pipeline already wrote:

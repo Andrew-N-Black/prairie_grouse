@@ -2,14 +2,14 @@
 # =============================================================================
 # SLURM ARRAY JOB: BUSCO COMPLETENESS + SEX/ORGANELLE SEQUENCE SPLIT
 #                  (PTARMIGAN-SCAFFOLDED ASSEMBLIES)
-# Step 07 — requires
+# Step 09 — requires
 # 05_ragtag_liftoff_array.sh to have completed, i.e. the final renamed
 # assemblies must exist in ${PROJECT_DIR}/final_ptarmigan as
 #   <SPECIES>_<SAMPLE>_<HAP>.pseudo_chr.fasta
 #
 # WHAT TO EXPECT, AND WHY COMPLETENESS IS A CHECK RATHER THAN A RESULT
 #   Reference-guided ordering cannot change gene content. The sequence is
-#   whatever hifiasm and yahs produced in step 02; step 05 only reordered and
+#   whatever hifiasm and yahs produced in step 04; step 05 only reordered and
 #   renamed it, and BUSCO searches sequence, not coordinates. So the score here
 #   measures the ASSEMBLY, and re-running it after a change of reference should
 #   reproduce the previous number to within rounding. A score that MOVED means
@@ -18,14 +18,14 @@
 #   downstream is believed.
 #
 #   The results that depend on the reference are the karyotype and synteny
-#   plots (step 09) and the join support (step 11), not these percentages.
+#   plots (step 09c) and the join support (step 06), not these percentages.
 #
 # n=23 samples x 2 haplotypes = 46 assemblies. One array task per SAMPLE;
 # each task handles both haplotypes, matching 05_ragtag_liftoff_array.sh.
 #
 # The aves_odb10 lineage is cached once under ${PROJECT_DIR}/busco_downloads and
 # shared by every BUSCO run in this pipeline, including the reference run in
-# step 08. BUSCO scores from different lineages are not comparable, so this
+# step 09b. BUSCO scores from different lineages are not comparable, so this
 # matters: all 47 runs must score against the same 8,338 orthologs.
 #
 # Per sample, per haplotype (hap1/hap2):
@@ -44,15 +44,15 @@
 # the source assembly (`-nt`), so they regenerate automatically if an assembly
 # is ever rebuilt rather than silently keeping stale results.
 #
-# INPUT MANIFEST: the same assembly_manifest.tsv used by steps 02 and 09. Only
+# INPUT MANIFEST: the same assembly_manifest.tsv used by steps 04 and 09c. Only
 # the first two columns (sample_id, species) are read here.
 #
 # USAGE:
 #   N=$(grep -v '^#' assembly_manifest.tsv | tail -n +2 | grep -c .)
-#   sbatch --array=0-$((N-1))%8 07_busco_array.sh
+#   sbatch --array=0-$((N-1))%8 09_busco_array.sh
 #
 #   Rerun a single failed task, e.g. index 7:
-#   sbatch --array=7 07_busco_array.sh
+#   sbatch --array=7 09_busco_array.sh
 #
 #   NOTE on %8: BUSCO is far lighter than the assembly job, so more tasks fit
 #   per node. Raise or lower to suit fair-share.
@@ -101,7 +101,7 @@
 set -euo pipefail
 
 # Defensive: --export=ALL (the sbatch default) carries the submitting shell's
-# Lmod state into the job. Start from a known state, as in step 02.
+# Lmod state into the job. Start from a known state, as in step 04.
 module unload anaconda 2>/dev/null || true
 
 ml biocontainers
@@ -134,7 +134,7 @@ SPLIT_DIR="${PROJECT_DIR}/final_autosomes_${REF_TAG}"
 # ---- Sequences to pull out of the assembly ----------------------------------
 # These are the post-rename names produced by step 05, which come from the NCBI
 # assembly report for the ptarmigan assembly. NCBI names avian mitochondria "MT"
-# in the assembly report, so it becomes chr_MT here — but step 03 prints the
+# in the assembly report, so it becomes chr_MT here — but step 02 prints the
 # karyotype it actually found, so check there if chr_MT turns up absent
 # everywhere.
 # Any name in this list that is absent from a given assembly is skipped with a
@@ -189,7 +189,7 @@ find_busco_summary() {
 mkdir -p logs "$BUSCO_DIR" "$SPLIT_DIR" "$BUSCO_DOWNLOAD_PATH"
 
 # Verify the tools actually landed on PATH. `ml busco` after `ml biocontainers`
-# is the same pattern quast uses in step 02; if this cluster ever renames the
+# is the same pattern quast uses in step 04; if this cluster ever renames the
 # module, fail here with a clear message rather than deep inside a BUSCO run.
 for BIN in busco samtools; do
     if ! command -v "$BIN" >/dev/null 2>&1; then
@@ -247,7 +247,7 @@ echo ">>> BUSCO lineage: ${BUSCO_LINEAGE_DIR}"
 # =============================================================================
 if [[ -z "${SLURM_ARRAY_TASK_ID:-}" ]]; then
     echo "ERROR: SLURM_ARRAY_TASK_ID is not set."
-    echo "Submit with: sbatch --array=0-N 07_busco_array.sh"
+    echo "Submit with: sbatch --array=0-N 09_busco_array.sh"
     exit 1
 fi
 if [[ ! -f "$MANIFEST" ]]; then
@@ -312,7 +312,7 @@ for HAP in hap1 hap2; do
     if [[ -s "$AUTOSOME_FASTA" && -f "$SPLIT_REPORT" && "$AUTOSOME_FASTA" -nt "$ASSEMBLY" ]]; then
         echo "  already split — skipping"
     else
-        # samtools faidx needs the index; Step 02 usually leaves one, but a
+        # samtools faidx needs the index; Step 04 usually leaves one, but a
         # rebuilt assembly can leave it stale, so refresh when it is older.
         if [[ ! -s "${ASSEMBLY}.fai" || "${ASSEMBLY}.fai" -ot "$ASSEMBLY" ]]; then
             samtools faidx "$ASSEMBLY"

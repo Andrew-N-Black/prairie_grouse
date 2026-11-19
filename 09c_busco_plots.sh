@@ -2,23 +2,23 @@
 # =============================================================================
 # SLURM JOB: BUSCO COMPLETENESS, KARYOTYPE AND SYNTENY PLOTS
 #            (PTARMIGAN-SCAFFOLDED ASSEMBLIES)
-# Step 09 — requires
-# 07_busco_array.sh, and 08_ptarmigan_reference_busco.sh if you want
+# Step 09c — requires
+# 09_busco_array.sh, and 09b_ptarmigan_reference_busco.sh if you want
 # the ptarmigan reference itself drawn alongside the grouse.
 #
 # NOT an array job. This is an aggregate step: one task reads every BUSCO run
 # at once, because the completeness barplots compare assemblies against each
 # other and the synteny plots compare them pairwise.
 #
-# THIS REUSES 09_busco_plots.py UNCHANGED. The Python script takes its input and
+# THIS REUSES 09c_busco_plots.py UNCHANGED. The Python script takes its input and
 # output directories as arguments, so there is exactly one copy of the plotting
 # logic for both trees — the undocumented BUSCO-Plot-Py workarounds in it
 # (karyotype column requirements, the chromosome-ordering fix, the lineage-name
 # correction, the SVG hook) are fixed in one place and cannot drift between the
-# chicken and ptarmigan figures. Keep 09_busco_plots.py in the submission
+# chicken and ptarmigan figures. Keep 09c_busco_plots.py in the submission
 # directory; this script will not run without it.
 #
-# ONE EDIT WAS MADE TO 09_busco_plots.py for this step: the species order now
+# ONE EDIT WAS MADE TO 09c_busco_plots.py for this step: the species order now
 # appends any species it discovers that is not in its built-in list, instead of
 # silently dropping it. Without that, a LAGMUT_*_ref reference would have been
 # left out of the per-species barplot and out of the default synteny pairs — the
@@ -50,7 +50,7 @@
 # PNG only.
 #
 # USAGE:
-#   sbatch 09_busco_plots.sh
+#   sbatch 09c_busco_plots.sh
 #
 #   Options are set in the USER-DEFINED VARIABLES block below: which synteny
 #   pairs to draw, plot orientation, how many chromosomes to show, and which
@@ -117,7 +117,7 @@ PLOT_PYTHON="${PLOT_ENV_DIR}/bin/python3"
 BUSCOPLOTPY_DIR="${PROJECT_DIR}/tools/BUSCO-Plot-Py"
 BUSCOPLOTPY_REPO="https://github.com/lorenzo-arcioni/BUSCO-Plot-Py.git"
 
-PLOT_SCRIPT="${SLURM_SUBMIT_DIR}/09_busco_plots.py"
+PLOT_SCRIPT="${SLURM_SUBMIT_DIR}/09c_busco_plots.py"
 
 # ---- Plot options -----------------------------------------------------------
 # Maximum chromosomes drawn per assembly. Only chr_* sequences are ever
@@ -163,12 +163,12 @@ mkdir -p logs "$PLOT_DIR" "$CONDA_ENVS_DIR" "$(dirname "$BUSCOPLOTPY_DIR")"
 # =============================================================================
 if [[ ! -f "$PLOT_SCRIPT" ]]; then
     echo "ERROR: companion script not found: ${PLOT_SCRIPT}"
-    echo "       09_busco_plots.py must sit next to this file in the submission directory."
+    echo "       09c_busco_plots.py must sit next to this file in the submission directory."
     exit 1
 fi
 if [[ ! -d "$BUSCO_DIR" ]]; then
     echo "ERROR: BUSCO output directory not found: ${BUSCO_DIR}"
-    echo "       Run 07_busco_array.sh first."
+    echo "       Run 09_busco_array.sh first."
     exit 1
 fi
 
