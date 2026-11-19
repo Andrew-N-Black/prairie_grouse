@@ -17,8 +17,10 @@
 #               recommendation), genotypes outside MIN_DP..MAX_DP set missing;
 #               indels and multiallelic sites dropped; then pixy pi/dxy/fst in
 #               WIN windows for STGR, GRPC and LEPC
-#   4. summary: 07_pixy_summary.py: per-chromosome and genome-wide values,
-#               Z vs autosomes with window bootstrap CIs, genome-scan figure
+#   4. summary: 07_pixy_summary.py: per-chromosome and genome-wide values after
+#               excluding low-site and divergence-outlier windows, Z vs autosomes with
+#               1-Mb block-bootstrap CIs, pi per species vs the neutral Z/A range
+#               (0.5625-0.75), genome scan; 07_fig7_diversity_divergence.py: Figure 7
 #
 # SETUP (once, on a login node)
 #   module load conda
@@ -76,7 +78,8 @@ MIN_BQ="${MIN_BQ:-20}"
 MIN_QUAL="${MIN_QUAL:-30}"       # SNP site QUAL
 MIN_DP="${MIN_DP:-5}"            # per-genotype depth
 MAX_DP="${MAX_DP:-100}"          # per-genotype depth (~2.3x the ~44x mean)
-MIN_SITES="${MIN_SITES:-5000}"   # windows with fewer callable sites are left out of plots/bootstrap
+MIN_SITES="${MIN_SITES:-5000}"   # windows with fewer callable sites are excluded from all summaries
+MAX_DIV="${MAX_DIV:-0.02}"       # windows with pi or dxy above this (~5x genome mean; collapsed repeats) are excluded
 BOOT="${BOOT:-1000}"
 
 STAGE="${STAGE:-${1:-}}"
@@ -221,7 +224,13 @@ summary)
     N=$(wc -l < "${OUT}/chunks.txt"); D=$(ls "${OUT}"/pixy/*_dxy.txt 2>/dev/null | grep -vc _males_ || true)
     echo ">>> pixy output for ${D} of ${N} chunks"
     python3 "${REPO}/07_pixy_summary.py" --pixy "${OUT}/pixy" --samples "$SAMPLES" --out "${OUT}/summary" \
-        --min-sites "$MIN_SITES" --boot "$BOOT"
+        --min-sites "$MIN_SITES" --max-div "$MAX_DIV" --boot "$BOOT"
+    # Figure 7: needs the reference-Z -> ptarmigan-Z alignment from step 06
+    if cp "${PROJECT_DIR}/z_inversions/ref_to_ptarmigan.paf" "${OUT}/summary/" 2>/dev/null; then
+        python3 "${REPO}/07_fig7_diversity_divergence.py" "${OUT}/summary"
+    else
+        echo "  (no z_inversions/ref_to_ptarmigan.paf: run step 06 with PTARMIGAN_FA for Figure 7)"
+    fi
     ;;
 *)
     echo "Usage: bash $0 samples | sbatch --export=ALL,STAGE=ref $0 | bash $0 map | bash $0 call | STAGE=summary sbatch --export=ALL $0" >&2
