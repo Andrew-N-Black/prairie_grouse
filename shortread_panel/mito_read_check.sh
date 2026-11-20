@@ -11,7 +11,7 @@
 # 1. Diagnostic sites: the 23 HiFi/Hi-C mitogenomes (12c collect) are aligned to the GRPC
 #    reference (MW574394.1); a site is diagnostic when all 7 LEPC share one base and every
 #    GRPC + STGR (and the reference) another.
-# 2. Reads: the bird's raw Illumina FASTQs (first MAX_PAIRS pairs; FASTQ_DIR/<ID>_S*_R1/R2_001.fastq.gz)
+# 2. Reads: the bird's raw Illumina FASTQs (first MAX_PAIRS pairs; <ID>_*_R1/R2_001.fastq.gz in FASTQ_DIRS)
 #    are mapped to MW574394.1 (minimap2 -x sr); without FASTQs, the unmapped reads of its panel CRAM
 #    (no mitochondrial contig there) are used. Alleles are counted at the diagnostic sites
 #    (mapping and base quality >= 20).
@@ -34,7 +34,9 @@ ENV="${ENV:-${ZM}/env}"
 LEPC_REF="${LEPC_REF:-$(cat "${ZM}/ref/lepc_ref.path")}"       # reference the CRAMs were written with
 CRAM_DIR="${CRAM_DIR:-/scratch/gautschi/blackan/GROUSE/nexus/crams_4.66x}"
 FASTQ_DIR="${FASTQ_DIR:-${ASM}/raw/Shotgun}"                  # <ID>_S*_R1_001.fastq.gz / _R2_ (preferred)
-MAX_PAIRS="${MAX_PAIRS:-10000000}"                            # read pairs used per bird (mito is high-copy)
+# further FASTQ folders, searched in order (the 2008-2023 panel birds: <ID>_<index>_L00N_R1_001.fastq.gz)
+FASTQ_DIRS="${FASTQ_DIRS:-${FASTQ_DIR} /scratch/gautschi/blackan/GROUSE/nexus/raw}"
+MAX_PAIRS="${MAX_PAIRS:-0}"          # read pairs used per bird; 0 = all (avian blood: nucleated red cells, few mitochondria)
 OUT="${OUT:-${MITO_DIR}/read_check}"
 TABLE="${TABLE:-${OUT}/mito_read_check.tsv}"                  # per-bird table (set per task by mito_panel.sh)
 THREADS="${SLURM_CPUS_PER_TASK:-8}"
@@ -101,25 +103,35 @@ sed -i "s/^MW_REF/${MCONTIG}/" "${OUT}/diag.bed"
 echo -e "ID\treads_used\tmito_reads\tdiag_sites_covered\tmedian_depth\treads_LEPC\treads_other\tfrac_LEPC\tsites_mixed" > "$TABLE"
 for ID in "$@"; do
     B="${OUT}/${ID}.mito.bam"
-    R1=$(ls "${FASTQ_DIR}/${ID}"_S*_R1_001.fastq.gz 2>/dev/null | head -1 || true)
+    R1=""
+    for d in $FASTQ_DIRS; do                       # "<ID>_" never matches another bird (F1_ vs F10_)
+        R1=$(ls "${d}/${ID}"_*_R1_001.fastq.gz 2>/dev/null | head -1 || true)
+        [[ -n "$R1" ]] && break
+    done
+    # a BAM left by an earlier run that found no reads is redone
+    if [[ -s "${B}.bai" ]] && [[ "$(samtools view -c "$B" 2>/dev/null || echo 0)" -eq 0 ]]; then rm -f "$B" "${B}.bai"; fi
     if [[ ! -s "${B}.bai" ]]; then
         if [[ -n "$R1" ]]; then                      # raw reads: first MAX_PAIRS pairs, paired mapping
             R2="${R1/_R1_001/_R2_001}"
             minimap2 -ax sr -t "$THREADS" "$MREF" \
-                <(zcat "$R1" | head -n $((MAX_PAIRS * 4))) <(zcat "$R2" | head -n $((MAX_PAIRS * 4))) 2>/dev/null \
-                | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B"
-            echo "${MAX_PAIRS}_pairs_FASTQ" > "${OUT}/${ID}.n_unmapped"
+                <(if [[ $MAX_PAIRS -gt 0 ]]; then zcat "$R1" | head -n $((MAX_PAIRS * 4)); else zcat "$R1"; fi) \
+                <(if [[ $MAX_PAIRS -gt 0 ]]; then zcat "$R2" | head -n $((MAX_PAIRS * 4)); else zcat "$R2"; fi) 2>/dev/null \
+                | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B" \
+                || echo "WARN: mapping failed for $ID" >&2
+            echo "$([[ $MAX_PAIRS -gt 0 ]] && echo "${MAX_PAIRS}_pairs" || echo all_pairs)_FASTQ" > "${OUT}/${ID}.n_unmapped"
         else                                         # fallback: unmapped reads kept in the panel CRAM
             C="${CRAM_DIR}/${ID}.cram"
             [[ -s "$C" ]] || { echo "skip $ID: no FASTQ in $FASTQ_DIR and no $C"; continue; }
             samtools fastq -f 4 -T "$LEPC_REF" "$C" 2>/dev/null > "${OUT}/${ID}.unmapped.fq"
             minimap2 -ax sr -t "$THREADS" "$MREF" "${OUT}/${ID}.unmapped.fq" 2>/dev/null \
-                | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B"
+                | samtools view -b -F 4 -q 20 - | samtools sort -o "$B" - && samtools index "$B" \
+                || echo "WARN: mapping failed for $ID" >&2
             echo "$(awk 'END{print NR/4}' "${OUT}/${ID}.unmapped.fq")_unmapped_CRAM_reads" > "${OUT}/${ID}.n_unmapped"
             rm -f "${OUT}/${ID}.unmapped.fq"
         fi
     fi
-    samtools mpileup -l "${OUT}/diag.bed" -q 20 -Q 20 -B -f "$MREF" "$B" 2>/dev/null > "${OUT}/${ID}.diag.pileup"
+    [[ -s "$B" ]] || { echo "skip $ID: no mitochondrial BAM" >&2; continue; }
+    samtools mpileup -l "${OUT}/diag.bed" -q 20 -Q 20 -B -f "$MREF" "$B" 2>/dev/null > "${OUT}/${ID}.diag.pileup" || true
     python3 - "${OUT}/diagnostic_sites.tsv" "${OUT}/${ID}.diag.pileup" "$ID" "$(cat "${OUT}/${ID}.n_unmapped")" \
         "$(samtools view -c "$B")" >> "$TABLE" <<'PY'
 import re, statistics, sys
