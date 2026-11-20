@@ -39,6 +39,13 @@ PY="${REPO_DIR}/hybrid_index.py"
 PANEL_TSV="${PANEL_TSV:-${REPO_DIR}/panel_groups.tsv}"
 EXCLUDE="${EXCLUDE-${REPO_DIR}/panel_exclude_2026.txt}"   # birds held back (first column = ID); EXCLUDE= uses all
 SEX_TSV="${SEX_TSV:-${REPO_DIR}/panel_sex.tsv}"
+# groups used by the estimate step (reference sets): allopatric LEPC >= ~90 km from the GRPC range
+# (Clark, Meade, Prowers, NM, TX) are the LEPC reference; Edwards, Kiowa, Comanche (KS) and Cheyenne (CO),
+# 18-70 km from it, are scored as LEPC_edge; Stanley Co. SD GRPC (~500 km from LEPC, contact with STGR only)
+# are scored as GRPC_control, a baseline for how far GRPC outside the reference populations sit from S = 1
+# without any LEPC contact. Distances from the placeholder range map (km_GRPC_range_map).
+# EST_GROUPS= uses the panel labels.
+EST_GROUPS="${EST_GROUPS-${REPO_DIR}/panel_groups_lepc_grpc.tsv}"
 OUT="${OUT:-${CLUSTER_SCRATCH}/GROUSE/hybrid_index}"
 GROUPS_TSV="${OUT}/groups.tsv"                           # panel minus EXCLUDE, written by setup
 ENV_PREFIX="${ENV_PREFIX:-${CLUSTER_SCRATCH}/GROUSE/z_markers/env}"   # step 22's env (angsd, samtools)
@@ -142,7 +149,9 @@ stage_gl() {
 
 stage_estimate() {
     use_env
-    python3 "$PY" estimate --indir "${OUT}/red" --groups "$GROUPS_TSV" --sex "$SEX_TSV" --z "$LEPC_Z" \
+    local G="${EST_GROUPS:-$GROUPS_TSV}"; log "estimate groups: $G"
+    [[ -s "${OUT}/hybrid_index.tsv" ]] && cp "${OUT}/hybrid_index.tsv" "${OUT}/hybrid_index.prev.tsv"
+    python3 "$PY" estimate --indir "${OUT}/red" --groups "$G" --sex "$SEX_TSV" --z "$LEPC_Z" \
         --pairs "$PAIRS" --daf "$DAF" --thin "$THIN" --boot "$BOOT" --threads "$THREADS" --out "${OUT}/hybrid_index.tsv"
     python3 "$PY" plot --tsv "${OUT}/hybrid_index.tsv" --prefix "${OUT}/hybrid_index"
     log "wrote ${OUT}/hybrid_index.tsv and plots"

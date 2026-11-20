@@ -244,10 +244,13 @@ def cmd_plot(a):
             t = dp[(dp["class"] == cls) & (dp.model == "diploid")]
             ax.plot([0, 0.5, 1, 0], [0, 1, 0, 0], color="#999999", lw=0.8)
             for sp, ts in t.groupby("species"):
-                for ctx, mk in (("Allopatric", "o"), ("Sympatric", "^")):
+                for ctx, mk in (("Allopatric", "o"), ("Edge", "s"), ("Sympatric", "^")):
                     u = ts[ts.context == ctx]
+                    if len(u) == 0:
+                        continue
                     ax.scatter(u.S, u.H, s=14, marker=mk, facecolors=COL.get(sp, "#7F7F7F") if ctx == "Allopatric" else "none",
-                               edgecolors=COL.get(sp, "#7F7F7F"), linewidths=0.7, label=f"{sp} {ctx.lower()}")
+                               edgecolors=COL.get(sp, "#7F7F7F"), linewidths=0.7,
+                               label=f"{sp} {'range edge' if ctx == 'Edge' else ctx.lower()}")
             ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.03, 1.03)
             ax.set_xlabel(f"Hybrid index (S, {s2} ancestry)"); ax.set_ylabel("Interspecific heterozygosity (H)")
             ax.set_title(title, loc="left", fontsize=9, fontweight="bold")
