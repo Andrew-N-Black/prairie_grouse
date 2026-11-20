@@ -183,6 +183,7 @@ Figure numbers follow the current draft; script and output file names (e.g. `12b
 | Table 3, tables S6–S7, fig. S9 (coding sequence) | 19 *(code to be added)* |
 | Fig. 3 (summary and mitogenome trees) | 15e, 15f, 21d |
 | Fig. 5, fig. S10, table S9 (π, d<sub>XY</sub>, F<sub>ST</sub>) | 20, 20b, 20c (+ 14 for ptarmigan coordinates) |
+| Fig. S11, table S10 (hybrid index, Z vs autosomal introgression; neutral simulations) | `shortread_panel/`: hybrid_index, figS11_hybrid_index, sim_z_autosome_neutral |
 | Mitogenomes | 21–21e |
 | Candidate Z-linked markers | 22, 22b |
 | GenBank submission | `ncbi_submission/` |
@@ -206,6 +207,7 @@ and sequenced until spring 2027.
 | [`hybrid_index.sh`](shortread_panel/hybrid_index.sh) + [`.py`](shortread_panel/hybrid_index.py) | Hybrid index (S) and interspecific heterozygosity (H) for every panel bird on the autosomes and the Z, from ANGSD genotype likelihoods at markers that differ between allopatric reference groups (dAF ≥ 0.8; reference birds scored leave-one-out; 1-Mb block bootstrap). Females' Z is scored as one copy. Triangle plots and Z vs autosomal S for LEPC–GRPC. Leaves out the 2026 birds listed in [`panel_exclude_2026.txt`](shortread_panel/panel_exclude_2026.txt) (held for the hybrid-zone paper); only the 24 allopatric 2026 GRPC are used, as parental reference birds. Run from `shortread_panel/`: `bash hybrid_index.sh setup`, then `submit`. |
 | [`panel_groups.tsv`](shortread_panel/panel_groups.tsv) | Panel birds by species × context, used by step 22's panel stages. |
 | [`sim_z_autosome_neutral.py`](shortread_panel/sim_z_autosome_neutral.py) | Neutral expectation for foreign ancestry on the Z vs the autosomes: individual-based Wright–Fisher model with ZW inheritance (Z recombines only in males), ongoing GRPC/LEPC immigration with male-, unbiased or female-only GRPC migrants, F1-female sterility, and single pulses. Reports Z/A ancestry ratio and the fraction of admixed birds with no foreign Z. Runs locally (`python3 sim_z_autosome_neutral.py --reps 20`). |
+| [`figS11_hybrid_index.py`](shortread_panel/figS11_hybrid_index.py) | **Fig. S11** (S vs H on the autosomes and the male Z; Z vs autosomal S; S against distance to the GRPC range) and **table S10** from `hybrid_index.tsv` and `panel_groups_lepc_grpc.tsv`. |
 | [`mito_panel.sh`](shortread_panel/mito_panel.sh) | Runs `mito_read_check.sh` over all hybrid-index birds in parallel (`prep`, `submit`, `status`) → `mito_panel.tsv`: LEPC vs GRPC/STGR maternal lineage per bird. |
 | [`panel_groups_lepc_grpc.tsv`](shortread_panel/panel_groups_lepc_grpc.tsv) | Reference sets for the hybrid-index estimate: LEPC ≥ ~90 km from the GRPC range as the LEPC reference, Edwards, Kiowa, Comanche (KS) and Cheyenne (CO) LEPC (18–70 km) as `LEPC_edge`, Stanley Co. SD GRPC (contact with STGR only) scored as `GRPC_control`, a no-LEPC-contact baseline; `km_GRPC_range_map` from the placeholder range map. |
 | [`panel_sex.tsv`](shortread_panel/panel_sex.tsv) | Sex (from Z/autosome read depth), county, state, coordinates and year of each panel bird. |
