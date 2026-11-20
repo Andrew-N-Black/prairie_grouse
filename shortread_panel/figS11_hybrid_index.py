@@ -4,6 +4,8 @@
   D  autosomal and Z S of allopatric and range-edge LEPC vs distance to the GRPC range.
 Also writes table S10 (one row per bird).
 usage: python3 figS11_hybrid_index.py <hybrid_index.tsv> <panel_groups_lepc_grpc.tsv> <out prefix> [mito_panel.tsv]
+                                      [qc_excluded_birds.tsv]
+Birds listed in qc_excluded_birds.tsv (first column ID) are left out of the figure and table.
 mito_panel.tsv (mito_panel.sh) adds the maternal lineage to table S10: LEPC (>= 90% LEPC alleles at the
 diagnostic sites), GRPC/STGR (<= 10%) or unassigned."""
 import sys
@@ -14,6 +16,9 @@ from matplotlib.lines import Line2D
 
 hi, groups, outp = sys.argv[1:4]
 mito = sys.argv[4] if len(sys.argv) > 4 else None
+excl = set()
+if len(sys.argv) > 5:
+    excl = {l.split("\t")[0] for l in open(sys.argv[5]) if l.strip() and not l.startswith(("#", "ID\t"))}
 COL = {"LEPC": "#A52A2A", "GRPC": "#DAA520"}
 plt.rcParams.update({"font.family": "Liberation Sans", "font.size": 8, "axes.spines.top": False,
                      "axes.spines.right": False, "axes.linewidth": 0.8})
@@ -24,7 +29,8 @@ w = d.pivot_table(index=["ID", "species", "grp", "context", "state", "sex"], col
                   values=["S", "S_lo", "S_hi", "H", "H_lo", "H_hi", "n_sites"]).reset_index()
 w.columns = ["_".join(c).strip("_") for c in w.columns]
 w = w.merge(g, on="ID", how="left")
-w = w[w.species.isin(["LEPC", "GRPC"])]
+w = w[w.species.isin(["LEPC", "GRPC"]) & ~w.ID.isin(excl)]
+print(f"{len(excl)} birds excluded by QC")
 
 
 def style(r):

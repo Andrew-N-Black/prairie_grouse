@@ -1,0 +1,54 @@
+# birds excluded from the hybrid-index and mitochondrial results: reads of both mitochondrial lineages at >= 10 of 47
+# diagnostic sites, and/or heterozygosity > 3 IQR above the median of non-hybrid birds of the same species and state
+ID	species	state	county	YEAR	sites_mixed	het_z	reason
+F125	LEPC	Texas	Yoakum County	2008.0	3	5.9	excess_heterozygosity
+F328	LEPC	Kansas	Ness County	2020.0	21	2.49	mixed_mtDNA
+F370	LEPC	Kansas	Kiowa County	2013.0	35	6.12	mixed_mtDNA;excess_heterozygosity
+F378	LEPC	Kansas	Gove County	2013.0	34	1.53	mixed_mtDNA
+F386	LEPC	Kansas	Comanche County	2013.0	2	6.93	excess_heterozygosity
+F395	LEPC	Kansas	Gove County	2013.0	38	1.34	mixed_mtDNA
+F397	LEPC	Kansas	Gove County	2013.0	46	3.7	mixed_mtDNA;excess_heterozygosity
+F402	LEPC	Kansas	Gove County	2013.0	36	1.78	mixed_mtDNA
+F411	LEPC	Kansas	Kiowa County	2013.0	41	8.43	mixed_mtDNA;excess_heterozygosity
+F421	LEPC	Kansas	Trego County	2013.0	20	2.35	mixed_mtDNA
+F426	LEPC	Kansas	Logan County	2013.0	29	2.4	mixed_mtDNA
+F438	LEPC	Kansas	Gove County	2013.0	26	2.92	mixed_mtDNA
+F451	LEPC	Kansas	Gove County	2013.0	12	2.47	mixed_mtDNA
+F454	LEPC	Kansas	Comanche County	2013.0	42	6.39	mixed_mtDNA;excess_heterozygosity
+F458	LEPC	Kansas	Gove County	2013.0	36	5.13	mixed_mtDNA;excess_heterozygosity
+F459	LEPC	Kansas	Logan County	2013.0	0	3.37	excess_heterozygosity
+F466	LEPC	Kansas	Gove County	2013.0	19	3.45	mixed_mtDNA;excess_heterozygosity
+F467	LEPC	Kansas	Comanche County	2013.0	41	7.83	mixed_mtDNA;excess_heterozygosity
+F471	LEPC	Kansas	Comanche County	2013.0	31	7.11	mixed_mtDNA;excess_heterozygosity
+F473	LEPC	Kansas	Gove County	2013.0	27	3.72	mixed_mtDNA;excess_heterozygosity
+F474	LEPC	Kansas	Logan County	2013.0	25	4.87	mixed_mtDNA;excess_heterozygosity
+F475	LEPC	Kansas	Comanche County	2013.0	19	4.14	mixed_mtDNA;excess_heterozygosity
+F478	LEPC	Kansas	Gove County	2013.0	33	3.05	mixed_mtDNA;excess_heterozygosity
+F479	LEPC	Kansas	Kiowa County	2013.0	41	8.26	mixed_mtDNA;excess_heterozygosity
+F480	LEPC	Kansas	Gove County	2013.0	22	5.75	mixed_mtDNA;excess_heterozygosity
+F482	LEPC	Kansas	Logan County	2013.0	10	0.62	mixed_mtDNA
+F483	LEPC	Kansas	Logan County	2013.0	30	4.94	mixed_mtDNA;excess_heterozygosity
+F486	LEPC	Kansas	Kiowa County	2013.0	27	5.98	mixed_mtDNA;excess_heterozygosity
+F488	LEPC	Kansas	Gove County	2013.0	28	2.44	mixed_mtDNA
+F491	LEPC	Kansas	Gove County	2013.0	19	3.31	mixed_mtDNA;excess_heterozygosity
+F492	LEPC	Kansas	Logan County	2013.0	22	3.77	mixed_mtDNA;excess_heterozygosity
+F494	LEPC	Kansas	Logan County	2013.0	23	7.87	mixed_mtDNA;excess_heterozygosity
+F504	LEPC	Kansas	Gove County	2014.0	30	6.12	mixed_mtDNA;excess_heterozygosity
+F515	LEPC	Kansas	Comanche County	2014.0	13	3.4	mixed_mtDNA;excess_heterozygosity
+F520	LEPC	Kansas	Comanche County	2014.0	27	6.73	mixed_mtDNA;excess_heterozygosity
+F544	LEPC	Kansas	Gove County	2014.0	35	4.63	mixed_mtDNA;excess_heterozygosity
+F552	LEPC	Kansas	Comanche County	2014.0	22	4.74	mixed_mtDNA;excess_heterozygosity
+F560	LEPC	Kansas	Comanche County	2014.0	27	4.79	mixed_mtDNA;excess_heterozygosity
+F574	LEPC	Kansas	Comanche County	2014.0	28	4.6	mixed_mtDNA;excess_heterozygosity
+F576	LEPC	Kansas	Gove County	2014.0	3	3.18	excess_heterozygosity
+F592	LEPC	Kansas	Gove County	2014.0	13	1.62	mixed_mtDNA
+F594	LEPC	Kansas	Comanche County	2014.0	20	1.53	mixed_mtDNA
+F600	LEPC	Kansas	Comanche County	2014.0	28	1.77	mixed_mtDNA
+F602	LEPC	Kansas	Comanche County	2014.0	20	2.48	mixed_mtDNA
+F603	LEPC	Kansas	Gove County	2014.0	10	1.41	mixed_mtDNA
+F610	LEPC	Colorado	Cheyenne County	2014.0	4	3.01	excess_heterozygosity
+F611	LEPC	Kansas	Clark County	2014.0	21	3.22	mixed_mtDNA;excess_heterozygosity
+F642	LEPC	Texas	Yoakum County		25	10.81	mixed_mtDNA;excess_heterozygosity
+F647	LEPC	Texas	Yoakum County		12	13.58	mixed_mtDNA;excess_heterozygosity
+F670	LEPC	New Mexico	Chaves County		20	1.99	mixed_mtDNA
+F5621	GRPC	Minnesota	Norman County	2026.0	0	5.98	excess_heterozygosity
