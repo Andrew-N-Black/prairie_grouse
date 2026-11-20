@@ -77,7 +77,7 @@ not yet been added here; the numbers are reserved so that nothing is renumbered 
 | Step | Script | What it does | Shape |
 |---|---|---|---|
 | 12 | [`12_pangenome_build.sh`](12_pangenome_build.sh) | PanSN renaming; PGGB graph per chromosome (seqwish v0.7.9 from `pggb.sif`), merged with `odgi squeeze`; odgi stats and path lengths; panacus growth/core by species; RepeatModeler per species → RepeatMasker on all 46; per-haplotype and per-species genome, gene and TE tables (**table S4**). | array per chromosome + summary |
-| 12b | [`12b_fig3_pangenome.py`](12b_fig3_pangenome.py) | **Fig. 2A** (pangenome growth and core) and **2B** (repeat and gene content) from step 12's `comparison/` tables. | local |
+| 12b | [`12b_fig3_pangenome.py`](12b_fig3_pangenome.py) | **Fig. S6** (autosomal pangenome growth and core; autosomal repeat and gene content per haplotype) from step 12's `comparison/` tables (`STAGE=autosomes`); writes `FigS6_autosomal_content.png/pdf`. | local |
 | 13 | [`13_structural_variants.sh`](13_structural_variants.sh) + [`13_sv_summary.py`](13_sv_summary.py) | `vg deconstruct` (v1.59) per chromosome against one reference path (longest single-sequence LEPC haplotype; STGR for chr_W), `vcfbub -l 0 -a 100000`, `vcfwave -I 1000`; SVs ≥ 50 bp typed INS/DEL/INV/COMPLEX; species-diagnostic SVs and fixed differences (all haplotypes and subsampled to six); Z vs autosomes (Fisher's exact test, density) (**table S8**). | array per chromosome, 96 cpu; summary |
 | 14 | [`14_z_inversions.sh`](14_z_inversions.sh) + [`.py`](14_z_inversions.py) | Large Z inversions: every Z path (`odgi paths -f`) aligned to the step-13 reference Z (`minimap2 -x asm10`); inverted blocks ≥ 50 kb clustered into events, classified, flagged near gaps/path ends; optional liftover to ptarmigan Z coordinates (needed by step 20b). | single, 32 cpu, < 1 h |
 
@@ -85,19 +85,19 @@ not yet been added here; the numbers are reserved so that nothing is renumbered 
 
 | Step | Script | What it does | Shape |
 |---|---|---|---|
-| 15 | [`15_thex_phylogeny.sh`](15_thex_phylogeny.sh) + [`.py`](15_thex_phylogeny.py) | **Negishi.** Every haplotype projected onto ptarmigan (`minimap2 -x asm20`), one alignment per chromosome, THExBuilder 100-kb windows → trimAl → pairwise filter → IQ-TREE 2 per window; Tree Viewer file with species-level `TopologyID` (**Fig. 3**, **Table 1**). | array → node → array → small job |
-| 15b | [`15b_thex_stats.py`](15b_thex_stats.py) | Table 1 / Fig. 3 statistics: Z vs autosome rank, Spearman vs chromosome length and gene density (Fig. 3C), window-level GEE. | local |
+| 15 | [`15_thex_phylogeny.sh`](15_thex_phylogeny.sh) + [`.py`](15_thex_phylogeny.py) | **Negishi.** Every haplotype projected onto ptarmigan (`minimap2 -x asm20`), one alignment per chromosome, THExBuilder 100-kb windows → trimAl → pairwise filter → IQ-TREE 2 per window; Tree Viewer file with species-level `TopologyID` (**Fig. 2**, **Table 1**). | array → node → array → small job |
+| 15b | [`15b_thex_stats.py`](15b_thex_stats.py) | Table 1 / Fig. 2 statistics: Z vs autosome rank, Spearman vs chromosome length and gene density (Fig. 2C), window-level GEE. | local |
 | 15c | [`15c_window_diagnostics.py`](15c_window_diagnostics.py) | Why a region has no trees: per-window N/repeat/GC, haplotype coverage, filter fate. | login node |
 | 15d | [`15d_thex_rescue.sh`](15d_thex_rescue.sh) + [`.py`](15d_thex_rescue.py) | Re-runs windows lost because 1–4 haplotypes lack that stretch, without those haplotypes. | node → array → small job |
 | 15e | [`15e_summary_trees.sh`](15e_summary_trees.sh) | Weighted ASTRAL summary trees (autosomes, Z) + gene concordance factors. | standby job |
-| 15f | [`15f_plot_summary_trees.R`](15f_plot_summary_trees.R) | **Fig. 4**: autosomal and Z summary trees beside the step-21d mitogenome tree. | local R |
+| 15f | [`15f_plot_summary_trees.R`](15f_plot_summary_trees.R) | **Fig. 3**: autosomal and Z summary trees beside the step-21d mitogenome tree. | local R |
 | 16 | *placeholder — code to be added* | **SNP calling from HiFi reads**: pbmm2 (HiFi preset) to the ptarmigan reference, DeepVariant v1.10.0 (PACBIO model) per bird, GLnexus joint genotyping, filters. | |
-| 17 | *placeholder — code to be added* | **Population structure**: PLINK PCA of LD-pruned SNPs (autosomes, 23 birds; Z, 17 males) and ADMIXTURE K = 2–6 with cross-validation (**Fig. 5A–D**, **fig. S6**). | |
-| 18 | *placeholder — code to be added* | **Sliding-window PCA and diagnostic regions**: WinPCA v1.2 (100-kb windows, 10-kb step), diagnostic score D(w), top-1% windows merged into regions (**Fig. 5E–H**, **fig. S7**, **Table 2**, **table S5**). | |
-| 19 | *placeholder — code to be added* | **Coding-sequence divergence and polymorphism**: CDS of all Z genes and 2,000 autosomal genes from each haplotype's Liftoff annotation; Nei–Gojobori dN/dS, πN/πS, fixed differences, McDonald–Kreitman tests; 41–44-Mb segment vs. blocks of consecutive Z genes (**Table 3**, **tables S6–S7**, **fig. S8**). | |
+| 17 | *placeholder — code to be added* | **Population structure**: PLINK PCA of LD-pruned SNPs (autosomes, 23 birds; Z, 17 males) and ADMIXTURE K = 2–6 with cross-validation (**Fig. 4A–D**, **fig. S7**). | |
+| 18 | *placeholder — code to be added* | **Sliding-window PCA and diagnostic regions**: WinPCA v1.2 (100-kb windows, 10-kb step), diagnostic score D(w), top-1% windows merged into regions (**Fig. 4E–H**, **fig. S8**, **Table 2**, **table S5**). | |
+| 19 | *placeholder — code to be added* | **Coding-sequence divergence and polymorphism**: CDS of all Z genes and 2,000 autosomal genes from each haplotype's Liftoff annotation; Nei–Gojobori dN/dS, πN/πS, fixed differences, McDonald–Kreitman tests; 41–44-Mb segment vs. blocks of consecutive Z genes (**Table 3**, **tables S6–S7**, **fig. S9**). | |
 | 20 | [`20_pixy_divergence.sh`](20_pixy_divergence.sh) + [`20_pixy_summary.py`](20_pixy_summary.py) | π, d<sub>XY</sub>, d<sub>a</sub> and Hudson's F<sub>ST</sub>: each bird's HiFi reads mapped (`minimap2 -x map-hifi`) to the step-13 reference paths (STGR W as a decoy); all-sites calling with bcftools in 5-Mb chunks; pixy 50-kb windows (Z also males only). Summary excludes windows with < 5,000 sites or π/d<sub>XY</sub> > 0.02, Z/autosome ratios with 1-Mb block-bootstrap CIs, π vs the neutral ZW range 0.5625–0.75 (**table S9**). | samples → ref → map (array per bird) → call (array per chunk) → summary |
-| 20b | [`20b_fig7_diversity_divergence.py`](20b_fig7_diversity_divergence.py) | **Fig. 6** (F<sub>ST</sub> genome scan; π and divergence by chromosome class; the Z in ptarmigan coordinates with the 41–44-Mb segment). Run by step 20's summary stage when step 14's `ref_to_ptarmigan.paf` exists. | local or summary job |
-| 20c | [`20c_figS6_genome_scans.py`](20c_figS6_genome_scans.py) | **Fig. S9**: F<sub>ST</sub>, d<sub>XY</sub> and π along the genome for each species pair (species colours; Z π from males). Run by step 20's summary stage. | local or summary job |
+| 20b | [`20b_fig7_diversity_divergence.py`](20b_fig7_diversity_divergence.py) | **Fig. 5** (F<sub>ST</sub> genome scan; π and divergence by chromosome class; the Z in ptarmigan coordinates with the 41–44-Mb segment). Run by step 20's summary stage when step 14's `ref_to_ptarmigan.paf` exists. | local or summary job |
+| 20c | [`20c_figS6_genome_scans.py`](20c_figS6_genome_scans.py) | **Fig. S10**: F<sub>ST</sub>, d<sub>XY</sub> and π along the genome for each species pair (species colours; Z π from males). Run by step 20's summary stage. | local or summary job |
 
 ### E. Mitogenomes and Z markers
 
@@ -106,7 +106,7 @@ not yet been added here; the numbers are reserved so that nothing is renumbered 
 | 21 | [`21_mitohifi_array.sh`](21_mitohifi_array.sh) | One circularized, annotated mitogenome per bird from HiFi reads (MitoHiFi v3; NUMT-bearing long reads removed). `setup` fetches the reference mitogenome. | array ×23, 32 cpu, 1 d |
 | 21b | [`21b_mito_from_hic.sh`](21b_mito_from_hic.sh) | Mitogenome as a Hi-C read consensus for birds whose HiFi reads are dominated by NUMTs (STGR F5485, F5502). | array (2 rows) |
 | 21c | [`21c_mito_qc.sh`](21c_mito_qc.sh) | QC table, `trim`/`rescue` fixes, pairwise identities, `collect` of the passing mitogenomes. | login node |
-| 21d | [`21d_mito_tree.sh`](21d_mito_tree.sh) | MAFFT alignment of the 23 mitogenomes + GRPC reference + ptarmigan outgroup; IQ-TREE 3 (ModelFinder, 1,000 UFBoot) (**Fig. 4C**). | short job |
+| 21d | [`21d_mito_tree.sh`](21d_mito_tree.sh) | MAFFT alignment of the 23 mitogenomes + GRPC reference + ptarmigan outgroup; IQ-TREE 3 (ModelFinder, 1,000 UFBoot) (**Fig. 3C**). | short job |
 | 21e | [`21e_plot_mito_tree_ggtree.R`](21e_plot_mito_tree_ggtree.R) | Stand-alone mitogenome tree (ggtree). | local R |
 | 22 | [`22_z_markers.sh`](22_z_markers.sh) + [`.py`](22_z_markers.py) | **Species-diagnostic Z SNPs** in the 40 Z-bearing haplotypes (aligned to the LEPC reference Z; minimap2 + paftools), single-copy and W-gametolog checks, Primer3 primers (80–200-bp products). Its `submit-panel`, `submit-zbam` and `submit-assign` stages use the short-read panel (ANGSD; [`shortread_panel/panel_groups.tsv`](shortread_panel/panel_groups.tsv)) and are not part of the manuscript. | array → node → array → small job |
 | 22b | [`22b_z_indel_markers.sh`](22b_z_indel_markers.sh) + [`.py`](22b_z_indel_markers.py) | **Gel-scorable Z indel markers**: species-diagnostic length differences in the Z-bearing haplotypes, Primer3, in-silico PCR on every Z, the female W and the whole LEPC reference. | single, 16 cpu, 4 h |
@@ -148,7 +148,7 @@ bash 15d_thex_rescue.sh submit                                      # optional
 bash 15e_summary_trees.sh setup && bash 15e_summary_trees.sh submit
 bash 20_pixy_divergence.sh samples                                  # check samples.tsv
 sbatch --export=ALL,STAGE=ref 20_pixy_divergence.sh
-bash 20_pixy_divergence.sh map && bash 20_pixy_divergence.sh call  # summary + Figs. 6, S9 run afterwards
+bash 20_pixy_divergence.sh map && bash 20_pixy_divergence.sh call  # summary + Fig. 5, fig. S10 run afterwards
 
 # E. mitogenomes and markers
 bash 21_mitohifi_array.sh setup && sbatch --array=0-$((N-1))%8 21_mitohifi_array.sh
@@ -167,7 +167,7 @@ Step 05's stages can be switched individually (`DO_LIFTOFF`, `DO_QUAST`, `DO_HIC
 
 ## Manuscript items and the steps that produce them
 
-Figure numbers follow the current draft; script and output file names (e.g. `20b_fig7_…`, `20c_figS6_…`) keep their original numbers.
+Figure numbers follow the current draft; script and output file names (e.g. `12b_fig3_…`, `20b_fig7_…`, `20c_figS6_…`) keep their original numbers.
 
 | Manuscript | Steps |
 |---|---|
@@ -176,13 +176,13 @@ Figure numbers follow the current draft; script and output file names (e.g. `20b
 | Figs. S4–S5 (karyotype, synteny); table S3 | 09c; 03 |
 | Table S2, fig. S3 (sex chromosomes) | 10 (+ CHD1 PCR) |
 | Fig. S2 (Merqury, depth) | 11–11d |
-| Fig. 2, table S4 (pangenome) | 12, 12b |
+| Fig. S6, table S4 (pangenome) | 12, 12b |
 | Table S8 (structural variants); Z inversions | 13; 14 |
-| Fig. 3, Table 1 (window trees) | 15, 15b–15d |
-| Fig. 5, Table 2, figs. S6–S7, table S5 (SNPs, PCA, ADMIXTURE, WinPCA) | 16–18 *(code to be added)* |
-| Table 3, tables S6–S7, fig. S8 (coding sequence) | 19 *(code to be added)* |
-| Fig. 4 (summary and mitogenome trees) | 15e, 15f, 21d |
-| Fig. 6, fig. S9, table S9 (π, d<sub>XY</sub>, F<sub>ST</sub>) | 20, 20b, 20c (+ 14 for ptarmigan coordinates) |
+| Fig. 2, Table 1 (window trees) | 15, 15b–15d |
+| Fig. 4, Table 2, figs. S7–S8, table S5 (SNPs, PCA, ADMIXTURE, WinPCA) | 16–18 *(code to be added)* |
+| Table 3, tables S6–S7, fig. S9 (coding sequence) | 19 *(code to be added)* |
+| Fig. 3 (summary and mitogenome trees) | 15e, 15f, 21d |
+| Fig. 5, fig. S10, table S9 (π, d<sub>XY</sub>, F<sub>ST</sub>) | 20, 20b, 20c (+ 14 for ptarmigan coordinates) |
 | Mitogenomes | 21–21e |
 | Candidate Z-linked markers | 22, 22b |
 | GenBank submission | `ncbi_submission/` |

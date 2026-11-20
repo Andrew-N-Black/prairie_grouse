@@ -116,7 +116,7 @@ COMPARE_DIR="${PROJECT_DIR}/comparison"
 #                   SLURM_ARRAY_TASK_ID (write it first with: bash $0 list)
 #   STAGE=summary   merge per-chromosome graphs, then genome-wide steps 4-7
 #   STAGE=te        TE annotation only (step 6); can run while the graphs build
-#   STAGE=autosomes autosome-only growth curves, repeat and gene content for Fig. 2 (after summary)
+#   STAGE=autosomes autosome-only growth curves, repeat and gene content for fig. S6 (after summary)
 CHROM="${CHROM:-}"
 STAGE="${STAGE:-}"
 MODE="${1:-}"
@@ -244,7 +244,7 @@ if [[ ! -x "$PANACUS_BIN" ]]; then
 fi
 
 # =============================================================================
-# STAGE=autosomes: Fig. 2 inputs restricted to the autosomes.
+# STAGE=autosomes: fig. S6 inputs restricted to the autosomes.
 # In every female the Z and W assembled in one haplotype and the other lacks both,
 # so whole-genome core curves, repeat content and gene counts largely track the
 # sex of the bird (a Z-less haplotype drops the ~75-Mb Z and ~800 genes; W-bearing

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fig. S9 (step 20; originally fig. S6): FST, dxy and pi along the genome for each species pair.
+"""Fig. S10 (step 20; originally fig. S6): FST, dxy and pi along the genome for each species pair.
 For every pair three tracks: FST and dxy (chromosomes alternating between the colours of the two
 species compared) and pi of each of the two species (species colours). 500-kb windows summed from pixy counts; windows excluded by 20_pixy_summary.py are
 left out. Autosomes and Z FST/dxy use all 23 birds; Z pi uses the 17 males.
