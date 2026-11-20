@@ -15,6 +15,9 @@
 #   bash ancestry_hmm.sh setup      # login node: conda env with ancestry_hmm; sites.tsv/.bed
 #   bash ancestry_hmm.sh submit     # read counts (array over birds) -> build + run (array over 4 runs) -> summary
 #   bash ancestry_hmm.sh status
+#   bash ancestry_hmm.sh submit_zfix   # after a full run: Z runs again with the pulse time FIXED at the group's
+#                                       # autosomal estimate (runs/<group>_Zfix). A free Z time collapses to a few
+#                                       # generations (whole-Z blocks in recent hybrids), which cannot detect short tracts.
 #
 # Model (per run): two ancestries, LEPC (0) the resident population and GRPC (1) arriving in a single pulse
 # whose time is estimated (-p 1 -TIME0 ...); GRPC proportion fixed at the group's mean autosomal hybrid index
@@ -110,7 +113,14 @@ stage_run() {
     for g in $GROUPS_RUN; do for c in A Z; do runs+=("${g}:${c}"); done; done
     local r=${runs[${SLURM_ARRAY_TASK_ID:?}]}
     local name=${r%%:*} rest=${r#*:}; local grp=${rest%%:*} cls=${rest##*:}
-    local dir="${OUT}/runs/${name}_${cls}"; mkdir -p "$dir"
+    local tag="$cls" tspec="-${TIME0}"
+    if [[ "${ZFIX:-0}" == 1 ]]; then
+        [[ "$cls" == Z ]] || die "ZFIX runs are Z only"
+        tspec=$(sed -n '/^optimum/,$p' "${OUT}/runs/${name}_A/ancestry_hmm.log" | awk '$1==1{print $2; exit}')
+        [[ -n "$tspec" ]] || die "no autosomal pulse time in ${OUT}/runs/${name}_A/ancestry_hmm.log"
+        tag=Zfix; log "$name Z: pulse time fixed at the autosomal estimate, $tspec generations"
+    fi
+    local dir="${OUT}/runs/${name}_${tag}"; mkdir -p "$dir"
     python3 "$PY" build --sites "${OUT}/sites.tsv" --counts "${OUT}/counts" --groups "$GROUPS_TSV" --sex "$SEX_TSV" \
         ${EXCLUDE:+--exclude "$EXCLUDE"} --grp "$grp" --cls "$cls" --rate-cm-mb "$RATE" \
         ${RATE_TABLE:+--rate-table "$RATE_TABLE"} --out "${dir}/data"
@@ -127,7 +137,7 @@ stage_run() {
     cd "$dir"
     local bopt=""; [[ "$BOOT" -gt 0 ]] && bopt="-b $BOOT 1000"
     "${HMM_ENV}/bin/ancestry_hmm" -i data.input -s data.samples -a 2 "$l" "$m" \
-        -p 0 100000 "$l" -p 1 "-${TIME0}" "$m" --ne "$NE" -e "$ERR" $bopt \
+        -p 0 100000 "$l" -p 1 "$tspec" "$m" --ne "$NE" -e "$ERR" $bopt \
         > ancestry_hmm.log 2>&1 || { tail -20 ancestry_hmm.log; die "ancestry_hmm failed: $name $cls"; }
     sed -n '/optimal model found/,$p' ancestry_hmm.log | head -8 || true     # estimated pulse time (generations)
 }
@@ -151,14 +161,24 @@ stage_submit() {
     log "counts $J1 ($nt tasks, $nb birds) -> runs $J2 ($nr) -> summary $J3"
 }
 
+stage_submit_zfix() {
+    local nr J2 J3 idx
+    nr=$(wc -w <<< "$GROUPS_RUN"); idx=$(seq -s, 1 2 $((2 * nr - 1)))      # the Z task of each group
+    J2=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q "$QOS" -t 1-00:00:00 --array="$idx" -c 4 --mem=32G \
+        --export=ALL,ZFIX=1 -J ahmm_zfix -o "${OUT}/logs/%x_%A_%a.out" "$SCRIPT" run) || die "run refused"
+    J3=$(sbatch --parsable -A "$ACCOUNT" -p "$PARTITION" -q "$QOS" -t 02:00:00 -c 2 --mem=32G \
+        --dependency=afterok:"$J2" --export=ALL -J ahmm_summary -o "${OUT}/logs/%x_%j.out" "$SCRIPT" summary) || die "summary refused"
+    log "Z runs with fixed pulse time $J2 (tasks $idx) -> summary $J3"
+}
+
 stage_status() {
     echo "birds counted: $(ls "${OUT}"/counts/*.counts 2>/dev/null | wc -l) / $(wc -l < "${OUT}/birds.tsv")"
     for d in "${OUT}"/runs/*/; do [[ -d "$d" ]] && echo "$(basename "$d"): $(ls "$d"/*.posterior 2>/dev/null | wc -l) posterior files"; done
-    squeue -u "$USER" -n ahmm_count,ahmm_run,ahmm_summary 2>/dev/null | head
+    squeue -u "$USER" -n ahmm_count,ahmm_run,ahmm_zfix,ahmm_summary 2>/dev/null | head
 }
 
 case "${1:-}" in
     setup) stage_setup ;; count) stage_count ;; run) stage_run ;; summary) stage_summary ;;
-    submit) stage_submit ;; status) stage_status ;;
+    submit) stage_submit ;; submit_zfix) stage_submit_zfix ;; status) stage_status ;;
     *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac
