@@ -203,7 +203,9 @@ and sequenced until spring 2027.
 | [`validate_indel_markers.sh`](shortread_panel/validate_indel_markers.sh) + [`.py`](shortread_panel/validate_indel_markers.py) | Genotypes the step-22b indel markers in higher-coverage shotgun birds and checks the alleles against ptarmigan, chicken and the grouse W. |
 | [`validate_snp_markers.sh`](shortread_panel/validate_snp_markers.sh) + [`.py`](shortread_panel/validate_snp_markers.py) | The same for the step-22 SNP markers; per-bird Z ancestry. |
 | [`mito_read_check.sh`](shortread_panel/mito_read_check.sh) | Which mitochondrial lineage a panel bird's reads carry, at LEPC-diagnostic sites. |
+| [`hybrid_index.sh`](shortread_panel/hybrid_index.sh) + [`.py`](shortread_panel/hybrid_index.py) | Hybrid index (S) and interspecific heterozygosity (H) for every panel bird on the autosomes and the Z, from ANGSD genotype likelihoods at markers that differ between allopatric reference groups (dAF ≥ 0.8; reference birds scored leave-one-out; 1-Mb block bootstrap). Females' Z is scored as one copy. Triangle plots and Z vs autosomal S for LEPC–GRPC. Leaves out the 2026 birds listed in [`panel_exclude_2026.txt`](shortread_panel/panel_exclude_2026.txt) (held for the hybrid-zone paper); only the 24 allopatric 2026 GRPC are used, as parental reference birds. Run from `shortread_panel/`: `bash hybrid_index.sh setup`, then `submit`. |
 | [`panel_groups.tsv`](shortread_panel/panel_groups.tsv) | Panel birds by species × context, used by step 22's panel stages. |
+| [`panel_sex.tsv`](shortread_panel/panel_sex.tsv) | Sex (from Z/autosome read depth), county, state, coordinates and year of each panel bird. |
 
 ---
 

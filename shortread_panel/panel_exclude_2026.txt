@@ -1,0 +1,56 @@
+# 2026 birds held back from the Science analyses (kept for the hybrid-zone paper).
+# Only the 24 allopatric 2026 GRPC are used, as parental reference birds.
+F3	LEPC_allo	New Mexico
+F10	LEPC_allo	New Mexico
+F17	LEPC_allo	New Mexico
+F18	LEPC_allo	New Mexico
+F19	LEPC_allo	New Mexico
+F21	LEPC_allo	New Mexico
+F38	LEPC_allo	New Mexico
+F45	LEPC_allo	New Mexico
+F92	LEPC_allo	New Mexico
+F340	LEPC_allo	New Mexico
+F5434	HYB	Minnesota
+F5437	STGR_sym	Nebraska
+F5438	STGR_sym	Nebraska
+F5439	STGR_sym	Nebraska
+F5440	STGR_sym	Nebraska
+F5441	STGR_sym	Nebraska
+F5442	STGR_sym	Nebraska
+F5443	STGR_sym	Nebraska
+F5444	STGR_sym	Nebraska
+F5445	STGR_sym	Nebraska
+F5446	STGR_sym	Nebraska
+F5447	STGR_sym	Nebraska
+F5448	STGR_sym	Nebraska
+F5449	STGR_sym	Nebraska
+F5450	STGR_sym	Nebraska
+F5451	STGR_sym	Nebraska
+F5452	STGR_sym	Nebraska
+F5453	STGR_sym	Nebraska
+F5454	STGR_sym	Nebraska
+F5455	STGR_sym	Nebraska
+F5456	STGR_sym	Nebraska
+F5458	STGR_allo	Montana
+F5462	STGR_allo	Montana
+F5472	STGR_allo	Montana
+F5476	STGR_allo	Montana
+F5479	STGR_allo	Montana
+F5481	STGR_allo	Montana
+F5487	STGR_allo	Montana
+F5493	STGR_allo	Montana
+F5527	STGR_allo	Montana
+F5547	LEPC_allo	New Mexico
+F5550	LEPC_allo	New Mexico
+F5556	LEPC_allo	New Mexico
+F5562	LEPC_allo	New Mexico
+F5563	LEPC_allo	New Mexico
+F5566	LEPC_allo	New Mexico
+F5567	LEPC_allo	New Mexico
+F5568	LEPC_allo	New Mexico
+F5573	LEPC_allo	New Mexico
+F5575	LEPC_allo	New Mexico
+F5585	GRPC_sym	Nebraska
+F5586	GRPC_sym	Nebraska
+F5622	HYB	Minnesota
+F5630	GRPC_sym	Minnesota
