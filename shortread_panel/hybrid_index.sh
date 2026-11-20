@@ -108,7 +108,7 @@ stage_gl() {
     region="${line%%$'\t'*}"; cls="${line##*$'\t'}"; tag="${region//[:]/_}"
     [[ -s "${OUT}/red/${tag}.npz" ]] && { log "$tag done"; return 0; }
     tmp="${OUT}/tmp/${tag}"; rm -rf "$tmp"; mkdir -p "$tmp"     # ~5 GB of chunk BAMs; scratch, not node /tmp
-    trap 'rm -rf "$tmp"' EXIT
+    # chunk BAMs are removed at the end of a successful task; a failed task leaves them for inspection
     : > "${tmp}/bams.txt"
     export REF tmp region
     one() {   # $1 = id, $2 = cram
@@ -131,10 +131,12 @@ stage_gl() {
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -minMapQ 30 -minQ 20 -C 50 -baq 1 \
         -GL 2 -doGlf 2 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-6 -minMaf 0.02 \
         -doCounts 1 -minInd "$(awk -v n="$nb" -v f="$MIN_IND_FRAC" 'BEGIN{printf "%d", n*f}')" -setMaxDepth $((nb * 15)) \
-        > "${tmp}/${tag}.angsd.log" 2>&1 || { tail -20 "${tmp}/${tag}.angsd.log"; die "angsd failed: $region"; }
+        > "${OUT}/logs/angsd_${tag}.log" 2>&1 || { tail -30 "${OUT}/logs/angsd_${tag}.log"; die "angsd failed: $region"; }
+    # ANGSD exits 0 after some errors (bad options, unreadable files), so check for the output itself
+    [[ -s "${tmp}/${tag}.beagle.gz" ]] || { tail -30 "${OUT}/logs/angsd_${tag}.log"; die "angsd wrote no beagle file for $region (log: ${OUT}/logs/angsd_${tag}.log)"; }
     python3 "$PY" reduce --beagle "${tmp}/${tag}.beagle.gz" --ids "${OUT}/ids.txt" --groups "$GROUPS_TSV" \
         --refs "$(cat "${OUT}/refs.txt")" --pre-daf "$PRE_DAF" --out "${tmp}/${tag}.npz"
-    cp "${tmp}/${tag}.mafs.gz" "${OUT}/gl/" && mv "${tmp}/${tag}.npz" "${OUT}/red/${tag}.npz"
+    cp "${tmp}/${tag}.mafs.gz" "${OUT}/gl/" && mv "${tmp}/${tag}.npz" "${OUT}/red/${tag}.npz" && rm -rf "$tmp"
     log "$region ($cls): done"
 }
 
@@ -164,10 +166,10 @@ stage_submit() {
 }
 
 stage_status() {
-    local n d; n=$(wc -l < "${OUT}/chunks.tsv"); d=$(ls "${OUT}"/red/*.npz 2>/dev/null | wc -l)
+    local n d; n=$(wc -l < "${OUT}/chunks.tsv"); d=$(find "${OUT}/red" -name '*.npz' 2>/dev/null | wc -l)
     echo "chunks done: $d / $n"
     squeue -u "$USER" -n hi_gl,hi_estimate -o "%.12i %.12j %.8T %.10M %R" 2>/dev/null | head -20
-    [[ -s "${OUT}/hybrid_index.markers.txt" ]] && cat "${OUT}/hybrid_index.markers.txt"
+    [[ -s "${OUT}/hybrid_index.markers.txt" ]] && cat "${OUT}/hybrid_index.markers.txt" || true
     grep -l -E 'ERROR|FAILED|CANCELLED|TIME LIMIT' "${OUT}"/logs/hi_gl_*.out 2>/dev/null | head || true
 }
 
