@@ -36,6 +36,7 @@ CRAM_DIR="${CRAM_DIR:-/scratch/gautschi/blackan/GROUSE/nexus/crams_4.66x}"
 FASTQ_DIR="${FASTQ_DIR:-${ASM}/raw/Shotgun}"                  # <ID>_S*_R1_001.fastq.gz / _R2_ (preferred)
 MAX_PAIRS="${MAX_PAIRS:-10000000}"                            # read pairs used per bird (mito is high-copy)
 OUT="${OUT:-${MITO_DIR}/read_check}"
+TABLE="${TABLE:-${OUT}/mito_read_check.tsv}"                  # per-bird table (set per task by mito_panel.sh)
 THREADS="${SLURM_CPUS_PER_TASK:-8}"
 export PATH="${ENV}/bin:${PATH}"
 
@@ -97,7 +98,7 @@ sed -i "s/^MW_REF/${MCONTIG}/" "${OUT}/diag.bed"
 [[ -s "${MREF}.fai" ]] || samtools faidx "$MREF"
 
 # ---- 2. per bird --------------------------------------------------------------
-echo -e "ID\treads_used\tmito_reads\tdiag_sites_covered\tmedian_depth\treads_LEPC\treads_other\tfrac_LEPC\tsites_mixed" > "${OUT}/mito_read_check.tsv"
+echo -e "ID\treads_used\tmito_reads\tdiag_sites_covered\tmedian_depth\treads_LEPC\treads_other\tfrac_LEPC\tsites_mixed" > "$TABLE"
 for ID in "$@"; do
     B="${OUT}/${ID}.mito.bam"
     R1=$(ls "${FASTQ_DIR}/${ID}"_S*_R1_001.fastq.gz 2>/dev/null | head -1 || true)
@@ -120,7 +121,7 @@ for ID in "$@"; do
     fi
     samtools mpileup -l "${OUT}/diag.bed" -q 20 -Q 20 -B -f "$MREF" "$B" 2>/dev/null > "${OUT}/${ID}.diag.pileup"
     python3 - "${OUT}/diagnostic_sites.tsv" "${OUT}/${ID}.diag.pileup" "$ID" "$(cat "${OUT}/${ID}.n_unmapped")" \
-        "$(samtools view -c "$B")" >> "${OUT}/mito_read_check.tsv" <<'PY'
+        "$(samtools view -c "$B")" >> "$TABLE" <<'PY'
 import re, statistics, sys
 sites, pile, bird, n_un, n_mito = sys.argv[1:6]
 d = {}
@@ -156,6 +157,6 @@ tot = nl + no
 print("\t".join(map(str, [bird, n_un, n_mito, len(deps), int(statistics.median(deps)) if deps else 0,
                           nl, no, "%.3f" % (nl / tot) if tot else "NA", mixed])))
 PY
-    tail -1 "${OUT}/mito_read_check.tsv"
+    tail -1 "$TABLE"
 done
-echo "table: ${OUT}/mito_read_check.tsv"
+echo "table: $TABLE"
