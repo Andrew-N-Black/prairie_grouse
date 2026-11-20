@@ -3,7 +3,9 @@
   A  S vs H, autosomes;  B  S vs H, Z of males;  C  Z S vs autosomal S (females: one Z);
   D  autosomal and Z S of allopatric and range-edge LEPC vs distance to the GRPC range.
 Also writes table S10 (one row per bird).
-usage: python3 figS11_hybrid_index.py <hybrid_index.tsv> <panel_groups_lepc_grpc.tsv> <out prefix>"""
+usage: python3 figS11_hybrid_index.py <hybrid_index.tsv> <panel_groups_lepc_grpc.tsv> <out prefix> [mito_panel.tsv]
+mito_panel.tsv (mito_panel.sh) adds the maternal lineage to table S10: LEPC (>= 90% LEPC alleles at the
+diagnostic sites), GRPC/STGR (<= 10%) or unassigned."""
 import sys
 import numpy as np, pandas as pd, matplotlib
 matplotlib.use("Agg")
@@ -11,6 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 hi, groups, outp = sys.argv[1:4]
+mito = sys.argv[4] if len(sys.argv) > 4 else None
 COL = {"LEPC": "#A52A2A", "GRPC": "#DAA520"}
 plt.rcParams.update({"font.family": "Liberation Sans", "font.size": 8, "axes.spines.top": False,
                      "axes.spines.right": False, "axes.linewidth": 0.8})
@@ -93,6 +96,10 @@ cols = ["ID", "species", "grp", "context", "state", "county", "sex", "km_GRPC_ra
 for cls in ("autosomes", "Z"):
     cols += [f"{v}_{cls}" for v in ("n_sites", "S", "S_lo", "S_hi", "H", "H_lo", "H_hi")]
 tab = w[cols].copy()
+if mito:
+    m = pd.read_csv(mito, sep="\t")[["ID", "mito_reads", "diag_sites_covered", "frac_LEPC", "sites_mixed"]]
+    m["mt_lineage"] = np.select([m.frac_LEPC >= 0.9, m.frac_LEPC <= 0.1], ["LEPC", "GRPC/STGR"], "unassigned")
+    tab = tab.merge(m, on="ID", how="left")
 for c in tab.columns:
     if tab[c].dtype == float and not c.startswith(("n_sites", "km")):
         tab[c] = tab[c].round(4)
