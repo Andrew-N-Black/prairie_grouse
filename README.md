@@ -31,7 +31,7 @@ numbers.
 |---|---|
 | `01_` … `22_` | the numbered pipeline (below) |
 | [`shortread_panel/`](shortread_panel) | **unnumbered, not in the manuscript yet**: short-read panel mapping, graph genotyping and introgression tests, marker validation in shotgun birds, panel mitochondrial read check (see [Short-read panel](#short-read-panel-unnumbered)) |
-| [`accessory/`](accessory) | data preparation (ONT, HiFi merging, decompression), container pulls, outgroup download, the HiFi-only re-assembly of F5545/F5597 |
+| [`accessory/`](accessory) | data preparation (ONT, HiFi merging, decompression), container pulls, outgroup download, the HiFi-only re-assembly of F5545/F5597; `z_hic_centromere.sh` (+ `.py`): Hi-C contact map and centromere profiles (trans contacts, Rabl symmetry, insulation) along chr_Z, with the ptarmigan 41–44-Mb low-diversity segment marked |
 | [`ncbi_submission/`](ncbi_submission) | GenBank submission of the 46 assemblies (FASTA prep, per-gap linkage evidence, `.sqn`) |
 | [`docs/`](docs) | working notes (`misjoin_fix_notes.md`, dated Oct 2026; its step numbers are the pre-merge ones) |
 | [`archive/chicken_reference_chain/`](archive/chicken_reference_chain) | the superseded chicken-guided pipeline, unchanged, for reference only |
